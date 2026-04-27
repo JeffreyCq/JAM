@@ -18,7 +18,12 @@
       "Skill(claude-api:*)",
       "Bash(node scripts/generate-icons.js)",
       "Bash(dir \"C:\\\\Users\\\\Jeffrey\\\\Dev\\\\HomebuddyFormatter\\\\build\" /b)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(git tag *)",
+      "Bash(gh run *)"
     ]
   }
 }

@@ -55,18 +55,25 @@ async function main() {
   fs.writeFileSync(path.join(BUILD, 'icon-json.png'), jsonPng)
   console.log('   ✅  build/icon-json.png\n')
 
-  console.log('Step 2/2 — PNG → ICO (Windows)…')
+  console.log('Step 2/3 — PNG → ICO (Windows)…')
   const jsonIco = png2icons.createICO(jsonPng, png2icons.BILINEAR, 0, true, true)
   if (!jsonIco) throw new Error('ICO generation failed for json icon')
   fs.writeFileSync(path.join(BUILD, 'icon-json.ico'), jsonIco)
   console.log('   ✅  build/icon-json.ico\n')
 
+  console.log('Step 3/3 — PNG → ICNS (macOS)…')
+  const jsonIcns = png2icons.createICNS(jsonPng, png2icons.BILINEAR, 0)
+  if (!jsonIcns) throw new Error('ICNS generation failed for json icon')
+  fs.writeFileSync(path.join(BUILD, 'icon-json.icns'), jsonIcns)
+  console.log('   ✅  build/icon-json.icns\n')
+
   console.log('🎉  All icons generated!\n')
-  console.log('   build/icon.png       (app, 1024×1024)')
-  console.log('   build/icon.ico       (app, Windows exe)')
-  console.log('   build/icon.icns      (app, macOS DMG)')
-  console.log('   build/icon-json.png  (file type, 1024×1024)')
-  console.log('   build/icon-json.ico  (file type, Windows)\n')
+  console.log('   build/icon.png        (app, 1024×1024)')
+  console.log('   build/icon.ico        (app, Windows exe)')
+  console.log('   build/icon.icns       (app, macOS DMG)')
+  console.log('   build/icon-json.png   (file type, 1024×1024)')
+  console.log('   build/icon-json.ico   (file type, Windows)')
+  console.log('   build/icon-json.icns  (file type, macOS)\n')
 }
 
 main().catch(err => {
