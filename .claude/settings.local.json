@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(tasklist /FI \"IMAGENAME eq electron.exe\")",
+      "Bash(tasklist)",
+      "Bash(npx electron-vite *)",
+      "Bash(CSC_IDENTITY_AUTO_DISCOVERY=false WIN_CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --win --x64)",
+      "Bash(C:/Users/Jeffrey/Dev/HomebuddyFormatter/node_modules/7zip-bin/win/x64/7za.exe x *)",
+      "Bash(node -e ' *)",
+      "Bash(CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --win --x64)",
+      "Bash(CSC_IDENTITY_AUTO_DISCOVERY=false npm run dist)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(node scripts/generate-icons.js)",
+      "Bash(dir \"C:\\\\Users\\\\Jeffrey\\\\Dev\\\\HomebuddyFormatter\\\\build\" /b)",
+      "Bash(git commit *)"
+    ]
+  }
+}

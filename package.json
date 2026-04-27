@@ -1,0 +1,147 @@
+{
+  "name": "homebuddy-formatter",
+  "version": "1.0.0",
+  "description": "JSON Analyzer & Formatter — format, repair, tree view, and more",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win --x64",
+    "dist:mac": "npm run build && electron-builder --mac --x64 --arm64",
+    "generate-icons": "node scripts/generate-icons.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.91.1"
+  },
+  "devDependencies": {
+    "@monaco-editor/react": "^4.6.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.1",
+    "electron": "^32.1.0",
+    "electron-builder": "^26.8.1",
+    "electron-vite": "^2.3.0",
+    "jsonrepair": "^3.11.3",
+    "monaco-editor": "^0.52.0",
+    "png2icons": "^2.0.1",
+    "rcedit": "^5.0.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.5.4"
+  },
+  "build": {
+    "appId": "com.homebuddy.formatter",
+    "productName": "HomebuddyFormatter",
+    "copyright": "Copyright © 2026",
+    "afterPack": "scripts/after-pack.js",
+    "asar": true,
+    "directories": {
+      "buildResources": "build",
+      "output": "release"
+    },
+    "files": [
+      "out/**/*"
+    ],
+    "extraResources": [
+      { "from": "build/icon.png",      "to": "icon.png"      },
+      { "from": "build/icon-json.ico", "to": "icon-json.ico" }
+    ],
+    "extraMetadata": {
+      "main": "out/main/index.js"
+    },
+    "fileAssociations": [
+      {
+        "ext": [
+          "json"
+        ],
+        "name": "JSON File",
+        "description": "JSON Document",
+        "role": "Editor",
+        "mimeType": "application/json",
+        "icon": "icon-json"
+      },
+      {
+        "ext": [
+          "jsonl",
+          "ndjson"
+        ],
+        "name": "JSON Lines File",
+        "description": "JSON Lines Document",
+        "role": "Editor",
+        "icon": "icon-json"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "icon.icns",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "dmg": {
+      "title": "${productName} ${version}",
+      "contents": [
+        {
+          "x": 410,
+          "y": 175,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 130,
+          "y": 175,
+          "type": "file"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 380
+      }
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "HomebuddyFormatter",
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh"
+    }
+  }
+}

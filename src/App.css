@@ -1,0 +1,935 @@
+/* ─── Variables ──────────────────────────────────────────────────────────────── */
+:root {
+  --bg: #1e1e2e;
+  --surface0: #181825;
+  --surface1: #313244;
+  --surface2: #45475a;
+  --border: #585b70;
+  --text: #cdd6f4;
+  --subtext: #a6adc8;
+  --muted: #6c7086;
+  --blue: #89b4fa;
+  --green: #a6e3a1;
+  --yellow: #f9e2af;
+  --red: #f38ba8;
+  --mauve: #cba6f7;
+  --teal: #94e2d5;
+  --peach: #fab387;
+  --accent: #89b4fa;
+  --toolbar-h: 44px;
+  --statusbar-h: 26px;
+  --tab-bar-h: 36px;
+}
+
+/* ─── Reset ──────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  overflow: hidden;
+  height: 100vh;
+  user-select: none;
+}
+
+#root { display: flex; flex-direction: column; height: 100vh; overflow: hidden }
+
+/* ─── App layout ─────────────────────────────────────────────────────────────── */
+.app { display: flex; flex-direction: column; height: 100vh; overflow: hidden }
+
+.main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ─── Panels ─────────────────────────────────────────────────────────────────── */
+.panel { display: flex; flex-direction: column; overflow: hidden; position: relative }
+.panel--editor { border-right: 1px solid var(--border) }
+.panel--tree { background: var(--bg) }
+
+/* ─── Resize handle ──────────────────────────────────────────────────────────── */
+.resize-handle {
+  width: 5px;
+  cursor: col-resize;
+  background: var(--border);
+  flex-shrink: 0;
+  transition: background 0.15s;
+  position: relative;
+  z-index: 10;
+}
+.resize-handle:hover { background: var(--accent) }
+
+/* ─── Toolbar ────────────────────────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--toolbar-h);
+  padding: 0 8px;
+  background: var(--surface0);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.toolbar::-webkit-scrollbar { display: none }
+
+.tb-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tb-group--indent {
+  align-items: center;
+  gap: 4px;
+}
+
+.tb-label { color: var(--subtext); font-size: 11px; white-space: nowrap }
+
+.tb-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s, border-color 0.1s;
+  font-family: inherit;
+}
+.tb-btn:hover { background: var(--surface1); border-color: var(--border) }
+.tb-btn:active { background: var(--surface2) }
+.tb-btn--active { background: var(--surface1); border-color: var(--accent); color: var(--accent) }
+.tb-btn--danger:hover { border-color: var(--red); color: var(--red) }
+
+.tb-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.tb-indent-btn {
+  width: 24px;
+  height: 22px;
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--subtext);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: monospace;
+  transition: background 0.1s, color 0.1s;
+}
+.tb-indent-btn:hover { background: var(--surface2); color: var(--text) }
+.tb-indent-btn--active { background: var(--accent); border-color: var(--accent); color: var(--bg) }
+
+/* ─── Tree panel header ──────────────────────────────────────────────────────── */
+.tree-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--surface0);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.tree-search-input {
+  width: 100%;
+  padding: 5px 10px;
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.tree-search-input:focus { border-color: var(--accent) }
+.tree-search-input::placeholder { color: var(--muted) }
+
+/* JSON Lines navigation */
+.jsonlines-nav {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  max-height: 60px;
+  overflow-y: auto;
+}
+.jl-btn {
+  padding: 2px 8px;
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--subtext);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: monospace;
+}
+.jl-btn:hover { background: var(--surface2); color: var(--text) }
+.jl-btn--active { background: var(--accent); border-color: var(--accent); color: var(--bg) }
+
+/* ─── Parse error banner ─────────────────────────────────────────────────────── */
+.parse-error {
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--red) 15%, transparent);
+  border-bottom: 1px solid var(--red);
+  color: var(--red);
+  font-size: 12px;
+  font-family: monospace;
+  flex-shrink: 0;
+}
+
+/* ─── Tree placeholder ───────────────────────────────────────────────────────── */
+.tree-placeholder, .tree-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 20px;
+}
+
+/* ─── Tree ───────────────────────────────────────────────────────────────────── */
+.tree-wrap { display: flex; flex-direction: column; flex: 1; overflow: hidden }
+
+.tree-controls {
+  display: flex;
+  gap: 4px;
+  padding: 5px 8px;
+  background: var(--surface0);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.tree-ctrl {
+  padding: 2px 10px;
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--subtext);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.1s, color 0.1s;
+}
+.tree-ctrl:hover { background: var(--surface2); color: var(--text) }
+
+.tree-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 4px;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+/* ─── Tree nodes ─────────────────────────────────────────────────────────────── */
+.tn { width: 100% }
+
+.tn-row {
+  display: flex;
+  align-items: center;
+  border-radius: 3px;
+  min-height: 22px;
+  position: relative;
+  cursor: default;
+}
+.tn-row:hover { background: color-mix(in srgb, var(--surface1) 50%, transparent) }
+.tn-row--match { background: color-mix(in srgb, var(--yellow) 12%, transparent) !important }
+
+.tn-toggle {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--subtext);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 0;
+  border-radius: 2px;
+  transition: color 0.1s;
+}
+.tn-toggle:hover { color: var(--accent) }
+.tn-toggle--leaf { cursor: default; pointer-events: none }
+
+.tn-key { color: var(--mauve); margin-right: 2px }
+.tn-key--match { color: var(--yellow) }
+.tn-index { color: var(--blue) }
+.tn-colon { color: var(--muted) }
+.tn-comma { color: var(--muted) }
+.tn-bracket { color: var(--subtext) }
+
+.tn-collapsed {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+.tn-collapsed:hover .tn-bracket { color: var(--accent) }
+
+.tn-count {
+  color: var(--muted);
+  font-size: 11px;
+  padding: 0 4px;
+}
+
+/* Value types */
+.tree-string { color: var(--green) }
+.tree-number { color: var(--blue) }
+.tree-boolean { color: var(--yellow) }
+.tree-null { color: var(--red); font-style: italic }
+
+/* Hover actions */
+.tn-actions {
+  display: flex;
+  gap: 3px;
+  margin-left: auto;
+  padding-right: 4px;
+}
+.tn-act {
+  padding: 1px 6px;
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--subtext);
+  font-size: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.1s, color 0.1s;
+}
+.tn-act:hover { background: var(--accent); border-color: var(--accent); color: var(--bg) }
+
+/* ─── Status bar ─────────────────────────────────────────────────────────────── */
+.statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--statusbar-h);
+  padding: 0 10px;
+  background: var(--surface0);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--subtext);
+}
+.statusbar--ok .sb-left { color: var(--green) }
+.statusbar--error .sb-left { color: var(--red) }
+
+.sb-left, .sb-right { display: flex; align-items: center; gap: 6px }
+.sb-error { color: var(--red) }
+.sb-item { white-space: nowrap }
+.sb-sep { color: var(--border) }
+.sb-muted { color: var(--muted) }
+
+/* ─── Toast notification ─────────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: calc(var(--statusbar-h) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  z-index: 9999;
+  animation: fadeInUp 0.2s ease, fadeOut 0.3s ease 1.7s forwards;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px) }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) }
+}
+@keyframes fadeOut {
+  from { opacity: 1 }
+  to   { opacity: 0 }
+}
+
+/* ─── Embedded JSON ──────────────────────────────────────────────────────────── */
+
+/* Arrow for string nodes that contain JSON */
+.tn-toggle--json { color: var(--teal) !important }
+.tn-toggle--json:hover { color: var(--accent) !important }
+.tn-toggle--json-open { color: var(--accent) !important }
+
+/* Hint badge shown next to truncated string */
+.tn-json-hint {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 0 5px;
+  background: color-mix(in srgb, var(--teal) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--teal) 40%, transparent);
+  border-radius: 3px;
+  color: var(--teal);
+  font-size: 10px;
+  font-family: monospace;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+/* Badge shown when embedded JSON is expanded (replaces raw string) */
+.tn-json-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  background: color-mix(in srgb, var(--teal) 20%, transparent);
+  border: 1px solid var(--teal);
+  border-radius: 4px;
+  color: var(--teal);
+  font-size: 11px;
+  font-family: monospace;
+  font-weight: 600;
+}
+
+/* Container for the embedded JSON subtree */
+.tn-embedded {
+  border-left: 2px solid color-mix(in srgb, var(--teal) 40%, transparent);
+  margin-left: 8px;
+  padding-left: 2px;
+  background: color-mix(in srgb, var(--teal) 4%, transparent);
+  border-radius: 0 0 4px 4px;
+}
+
+/* Root node marker for embedded subtrees */
+.tn--embedded-root > .tn-row {
+  background: color-mix(in srgb, var(--teal) 6%, transparent) !important;
+}
+
+/* "parse" button highlight */
+.tn-act--json {
+  color: var(--teal) !important;
+  border-color: color-mix(in srgb, var(--teal) 50%, transparent) !important;
+}
+.tn-act--json:hover {
+  background: var(--teal) !important;
+  border-color: var(--teal) !important;
+  color: var(--bg) !important;
+}
+
+/* Ellipsis in long strings */
+.tree-ellipsis { color: var(--muted) }
+
+/* ─── Tab bar ────────────────────────────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px;
+  height: 36px;
+  background: var(--surface0);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.tab-btn {
+  padding: 5px 16px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px 5px 0 0;
+  color: var(--subtext);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.tab-btn:hover { background: var(--surface1); color: var(--text) }
+.tab-btn--active {
+  background: var(--surface1);
+  border-color: var(--border);
+  border-bottom-color: var(--surface1);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ─── CRM Builder layout ─────────────────────────────────────────────────────── */
+
+/*
+ * Explicit height via calc — the most reliable way to guarantee scroll
+ * works inside deeply-nested flex/grid containers in Electron/Chromium.
+ */
+.crm-builder {
+  height: calc(100vh - var(--tab-bar-h));
+  display: grid;
+  grid-template-columns: 55% 45%;
+  grid-template-rows: 1fr;
+  overflow: hidden;
+}
+
+/* Left column: scrollable form — plain block layout, no flex */
+.crm-builder__form {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px;
+  border-right: 1px solid var(--border);
+  box-sizing: border-box;
+}
+
+/* Right column: sticky JSON preview */
+.crm-builder__preview {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface0);
+}
+
+.crm-builder__preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--surface0);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.crm-builder__preview-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--subtext);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.crm-builder__json {
+  flex: 1;
+  overflow: auto;
+  padding: 12px 14px;
+  margin: 0;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--green);
+  background: var(--bg);
+  white-space: pre;
+  user-select: text;
+}
+
+/* ─── CRM Builder: Cards ─────────────────────────────────────────────────────── */
+.cb-card {
+  background: var(--surface0);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: visible;   /* never clip card content */
+  margin-bottom: 10px;
+}
+
+.cb-card__title {
+  padding: 8px 12px;
+  background: var(--surface1);
+  border-bottom: 1px solid var(--border);
+  border-radius: 6px 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+
+.cb-card__body {
+  padding: 12px;
+}
+
+/* ─── CRM Builder: Form rows ─────────────────────────────────────────────────── */
+.cb-form-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.cb-form-row__label {
+  flex: 0 0 170px;
+  font-size: 12px;
+  color: var(--subtext);
+  padding-top: 6px;
+}
+
+.cb-form-row__ctrl {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ─── CRM Builder: Inputs ────────────────────────────────────────────────────── */
+.cb-input {
+  padding: 5px 8px;
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+.cb-input:focus { border-color: var(--accent) }
+.cb-input::placeholder { color: var(--muted) }
+.cb-input:disabled { opacity: 0.4; cursor: not-allowed }
+
+.cb-select {
+  padding: 5px 8px;
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+.cb-select:focus { border-color: var(--accent) }
+
+/* ─── CRM Builder: Toggle buttons ───────────────────────────────────────────── */
+.cb-btn-group { display: flex; gap: 4px; flex-wrap: wrap }
+
+.cb-tog {
+  padding: 4px 12px;
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--subtext);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.cb-tog:hover { background: var(--surface2); color: var(--text) }
+.cb-tog--on { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600 }
+
+/* ─── CRM Builder: Key-value rows ────────────────────────────────────────────── */
+.cb-kv-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px }
+
+.cb-kv-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ─── CRM Builder: Remove / Add / Link buttons ───────────────────────────────── */
+.cb-remove-btn {
+  flex-shrink: 0;
+  width: 22px; height: 22px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.cb-remove-btn:hover { background: color-mix(in srgb, var(--red) 20%, transparent); border-color: var(--red); color: var(--red) }
+
+.cb-add-btn {
+  align-self: flex-start;
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  color: var(--subtext);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.cb-add-btn:hover { background: var(--surface1); border-color: var(--accent); color: var(--accent) }
+
+.cb-link-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
+.cb-link-btn:hover { color: var(--accent) }
+
+/* ─── CRM Builder: Header presets ────────────────────────────────────────────── */
+.cb-presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.cb-preset-btn {
+  padding: 2px 8px;
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--subtext);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.1s, color 0.1s;
+}
+.cb-preset-btn:hover { background: var(--surface2); color: var(--accent); border-color: var(--accent) }
+
+/* ─── CRM Builder: Checkboxes ────────────────────────────────────────────────── */
+.cb-check-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+.cb-check-label--block {
+  display: flex;
+  padding: 4px 0;
+}
+.cb-check-label input[type="checkbox"] { cursor: pointer; accent-color: var(--accent) }
+
+/* ─── CRM Builder: Field groups ──────────────────────────────────────────────── */
+.cb-field-group { margin-bottom: 10px }
+
+.cb-field-group__label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 4px;
+  padding-left: 2px;
+}
+
+.cb-field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px;
+  border-radius: 3px;
+  transition: background 0.1s;
+}
+.cb-field-row:hover { background: color-mix(in srgb, var(--surface1) 60%, transparent) }
+.cb-field-row input[type="checkbox"] { cursor: pointer; accent-color: var(--accent); flex-shrink: 0 }
+
+.cb-field-path {
+  flex: 1;
+  font-size: 11.5px;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  color: var(--subtext);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cb-field-row--on .cb-field-path { color: var(--text) }
+
+.cb-arrow { color: var(--muted); font-size: 12px; flex-shrink: 0 }
+
+/* ─── CRM Builder: Step cards ────────────────────────────────────────────────── */
+.cb-step-card {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  margin-bottom: 8px;
+  overflow: visible;
+}
+
+.cb-step-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--surface1);
+  border-bottom: 1px solid var(--border);
+  border-radius: 5px 5px 0 0;
+}
+
+.cb-step-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--mauve);
+  background: color-mix(in srgb, var(--mauve) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mauve) 30%, transparent);
+  padding: 1px 7px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.cb-step-label {
+  flex: 1;
+  font-weight: 500;
+}
+
+.cb-step-id {
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--bg);
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.cb-step-actions { display: flex; gap: 4px; margin-left: auto }
+
+.cb-icon-btn {
+  width: 22px; height: 22px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--subtext);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.1s, color 0.1s;
+}
+.cb-icon-btn:hover { background: var(--surface2); color: var(--text) }
+.cb-icon-btn--danger:hover { background: color-mix(in srgb, var(--red) 20%, transparent); border-color: var(--red); color: var(--red) }
+
+.cb-step-card__body { padding: 10px 12px }
+
+.cb-step-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.cb-step-row__label {
+  font-size: 11px;
+  color: var(--subtext);
+  flex: 0 0 100px;
+}
+
+.cb-step-note {
+  padding: 7px 10px;
+  background: color-mix(in srgb, var(--blue) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--blue) 25%, transparent);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--subtext);
+  margin-top: 4px;
+}
+
+.cb-step-body-builder {
+  margin-top: 8px;
+  padding: 8px;
+  background: color-mix(in srgb, var(--surface1) 40%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.cb-step-body-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--subtext);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+
+.cb-step-body-btns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.cb-dropdown-wrap select { width: auto }
+
+/* ─── CRM Builder: Transform block ───────────────────────────────────────────── */
+.cb-transform-block {
+  padding: 8px;
+  background: color-mix(in srgb, var(--surface1) 50%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+/* ─── CRM Builder: Expression preview ───────────────────────────────────────── */
+.cb-expr-preview {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--blue) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--blue) 30%, transparent);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--subtext);
+}
+.cb-expr-preview code {
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  color: var(--blue);
+}
+
+/* ─── CRM Builder: Badges & hints ────────────────────────────────────────────── */
+.cb-badge {
+  display: inline-flex;
+  padding: 0 5px;
+  background: color-mix(in srgb, var(--yellow) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--yellow) 35%, transparent);
+  border-radius: 3px;
+  color: var(--yellow);
+  font-size: 10px;
+  font-family: sans-serif;
+  white-space: nowrap;
+}
+
+.cb-hint {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ─── CRM Builder: Action buttons ────────────────────────────────────────────── */
+.cb-action-btn {
+  padding: 5px 14px;
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+.cb-action-btn:hover { background: var(--surface2); border-color: var(--subtext) }
+.cb-action-btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+}
+.cb-action-btn--primary:hover { filter: brightness(1.1) }
+
+/* ─── Scrollbars ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px }
+::-webkit-scrollbar-track { background: transparent }
+::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px }
+::-webkit-scrollbar-thumb:hover { background: var(--border) }

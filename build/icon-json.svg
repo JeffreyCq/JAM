@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Subtle blue tint on white background -->
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#EEF4FF"/>
+    </linearGradient>
+    <!-- HB text gradient: vivid blue top → deep blue bottom -->
+    <linearGradient id="hbgrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#2979FF"/>
+      <stop offset="100%" stop-color="#0A2472"/>
+    </linearGradient>
+  </defs>
+
+  <!-- White rounded-square background -->
+  <rect width="1024" height="1024" rx="192" fill="url(#bg)"/>
+
+  <!-- Thin blue border -->
+  <rect x="10" y="10" width="1004" height="1004" rx="184"
+        fill="none" stroke="#2979FF" stroke-opacity="0.25" stroke-width="6"/>
+
+  <!-- HB — main text -->
+  <text
+    x="512" y="530"
+    text-anchor="middle"
+    font-family="'Arial Black', 'Helvetica Neue', Impact, sans-serif"
+    font-weight="900"
+    font-size="390"
+    fill="url(#hbgrad)"
+  >HB</text>
+
+  <!-- Separator line -->
+  <rect x="120" y="660" width="784" height="3" rx="1.5"
+        fill="#2979FF" fill-opacity="0.3"/>
+
+  <!-- JSON — subtitle -->
+  <text
+    x="512" y="860"
+    text-anchor="middle"
+    font-family="'Arial Black', 'Helvetica Neue', Impact, sans-serif"
+    font-weight="900"
+    font-size="200"
+    fill="#2979FF"
+    fill-opacity="0.85"
+    letter-spacing="8"
+  >JSON</text>
+</svg>
