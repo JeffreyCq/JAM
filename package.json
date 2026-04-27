@@ -37,6 +37,7 @@
     "productName": "HomebuddyFormatter",
     "copyright": "Copyright © 2026",
     "afterPack": "scripts/after-pack.js",
+    "publish": "never",
     "asar": true,
     "directories": {
       "buildResources": "build",
