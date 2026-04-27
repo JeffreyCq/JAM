@@ -8,8 +8,8 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "dist": "npm run build && electron-builder",
-    "dist:win": "npm run build && electron-builder --win --x64",
-    "dist:mac": "npm run build && electron-builder --mac --x64 --arm64",
+    "dist:win": "npm run build && electron-builder --win --x64 --publish never",
+    "dist:mac": "npm run build && electron-builder --mac --x64 --arm64 --publish never",
     "generate-icons": "node scripts/generate-icons.js"
   },
   "dependencies": {
@@ -37,7 +37,6 @@
     "productName": "HomebuddyFormatter",
     "copyright": "Copyright © 2026",
     "afterPack": "scripts/after-pack.js",
-    "publish": "never",
     "asar": true,
     "directories": {
       "buildResources": "build",
