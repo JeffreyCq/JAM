@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import Anthropic from '@anthropic-ai/sdk'
 import Editor from '@monaco-editor/react'
 import loader from '@monaco-editor/loader'
 import * as monaco from 'monaco-editor'
@@ -50,8 +51,27 @@ export default function App() {
   const [indentSize, setIndentSize] = useState(2)
   const [notification, setNotification] = useState<string | null>(null)
   const [leftPct, setLeftPct] = useState(50)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [showApiSettings, setShowApiSettings] = useState(false)
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('anthropic_api_key') ?? '')
+  const [apiKeyDraft, setApiKeyDraft] = useState('')
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('app_theme')
+    return (saved === 'light' ? 'light' : 'dark') as 'dark' | 'light'
+  })
   const dragging = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Apply theme to <html> element
+  useEffect(() => {
+    const root = document.documentElement
+    if (theme === 'light') {
+      root.setAttribute('data-theme', 'light')
+    } else {
+      root.removeAttribute('data-theme')
+    }
+    localStorage.setItem('app_theme', theme)
+  }, [theme])
 
   // Parse JSON with 300ms debounce
   useEffect(() => {
@@ -118,6 +138,32 @@ export default function App() {
   const handleCopyAll = async () => {
     await navigator.clipboard.writeText(content)
     notify('📋 Copied to clipboard!')
+  }
+
+  const handleAiRepair = async () => {
+    if (!apiKey.trim()) { setShowApiSettings(true); return }
+    setAiLoading(true)
+    try {
+      const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true })
+      const msg = await client.messages.create({
+        model: 'claude-haiku-4-5',
+        max_tokens: 8192,
+        messages: [{
+          role: 'user',
+          content: `Fix this malformed JSON. Return ONLY valid JSON, no explanation, no markdown fences:\n\n${content}`
+        }]
+      })
+      const raw = msg.content[0].type === 'text' ? msg.content[0].text : ''
+      const match = raw.match(/```(?:json)?\n?([\s\S]*?)\n?```/)
+      const repaired = (match ? match[1] : raw).trim()
+      setContent(repaired)
+      setTreeKey(k => k + 1)
+      notify('🤖 AI repaired!')
+    } catch (e) {
+      notify(`AI error: ${(e as Error).message}`)
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   const handleOpenFile = async () => {
@@ -197,6 +243,14 @@ export default function App() {
         >
           🔨 CRM Builder
         </button>
+        <div className="tab-bar__spacer" />
+        <button
+          className="theme-toggle"
+          onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+        >
+          {theme === 'dark' ? '☀' : '🌙'}
+        </button>
       </div>
 
       {/* ── Editor tab ── */}
@@ -217,6 +271,10 @@ export default function App() {
             onToggleJsonLines={() => { setIsJsonLines(v => !v); setTreeKey(k => k + 1) }}
             indentSize={indentSize}
             onIndentSizeChange={setIndentSize}
+            onAiRepair={handleAiRepair}
+            onOpenApiSettings={() => { setApiKeyDraft(apiKey); setShowApiSettings(true) }}
+            aiLoading={aiLoading}
+            hasApiKey={!!apiKey.trim()}
           />
 
           <div className="main" ref={containerRef}>
@@ -226,7 +284,7 @@ export default function App() {
                 value={content}
                 onChange={v => setContent(v ?? '')}
                 language="json"
-                theme="vs-dark"
+                theme={theme === 'dark' ? 'vs-dark' : 'vs-light'}
                 options={{
                   minimap: { enabled: false },
                   fontSize: 13,
@@ -308,6 +366,49 @@ export default function App() {
       {notification && (
         <div className="toast" key={notification}>
           {notification}
+        </div>
+      )}
+
+      {/* ── API key settings modal ── */}
+      {showApiSettings && (
+        <div className="api-modal-overlay" onClick={() => setShowApiSettings(false)}>
+          <div className="api-modal" onClick={e => e.stopPropagation()}>
+            <h3>🤖 Anthropic API Key</h3>
+            <p>Required for AI JSON repair. Key is stored locally and never sent anywhere except the Anthropic API.</p>
+            <input
+              type="password"
+              placeholder="sk-ant-..."
+              value={apiKeyDraft}
+              onChange={e => setApiKeyDraft(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  localStorage.setItem('anthropic_api_key', apiKeyDraft)
+                  setApiKey(apiKeyDraft)
+                  setShowApiSettings(false)
+                }
+              }}
+              autoFocus
+            />
+            <p style={{ fontSize: 11 }}>
+              Get a key at <span style={{ color: 'var(--accent)' }}>console.anthropic.com</span> — Haiku model (~$0.001/repair).
+            </p>
+            <div className="api-modal__btns">
+              {apiKey && (
+                <button onClick={() => {
+                  localStorage.removeItem('anthropic_api_key')
+                  setApiKey('')
+                  setApiKeyDraft('')
+                  setShowApiSettings(false)
+                }}>Clear</button>
+              )}
+              <button onClick={() => setShowApiSettings(false)}>Cancel</button>
+              <button className="btn-save" onClick={() => {
+                localStorage.setItem('anthropic_api_key', apiKeyDraft)
+                setApiKey(apiKeyDraft)
+                setShowApiSettings(false)
+              }}>Save</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

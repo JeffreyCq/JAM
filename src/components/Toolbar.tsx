@@ -15,6 +15,10 @@ interface ToolbarProps {
   onToggleJsonLines: () => void
   indentSize: number
   onIndentSizeChange: (n: number) => void
+  onAiRepair: () => void
+  onOpenApiSettings: () => void
+  aiLoading: boolean
+  hasApiKey: boolean
 }
 
 function Btn({
@@ -22,19 +26,24 @@ function Btn({
   title,
   children,
   active,
-  danger
+  danger,
+  ai,
+  disabled
 }: {
   onClick: () => void
   title: string
   children: React.ReactNode
   active?: boolean
   danger?: boolean
+  ai?: boolean
+  disabled?: boolean
 }) {
   return (
     <button
-      className={`tb-btn${active ? ' tb-btn--active' : ''}${danger ? ' tb-btn--danger' : ''}`}
+      className={`tb-btn${active ? ' tb-btn--active' : ''}${danger ? ' tb-btn--danger' : ''}${ai ? ' tb-btn--ai' : ''}`}
       onClick={onClick}
       title={title}
+      disabled={disabled}
     >
       {children}
     </button>
@@ -59,7 +68,11 @@ export function Toolbar({
   isJsonLines,
   onToggleJsonLines,
   indentSize,
-  onIndentSizeChange
+  onIndentSizeChange,
+  onAiRepair,
+  onOpenApiSettings,
+  aiLoading,
+  hasApiKey,
 }: ToolbarProps) {
   return (
     <div className="toolbar">
@@ -89,9 +102,25 @@ export function Toolbar({
         <Btn onClick={onMinify} title="Minify to one line">
           ⬛ Minify
         </Btn>
-        <Btn onClick={onRepair} title="Auto-fix JSON errors">
+        <Btn onClick={onRepair} title="Auto-fix JSON errors (rule-based, offline)">
           🔧 Repair
         </Btn>
+        <Btn
+          onClick={onAiRepair}
+          title={hasApiKey ? 'Repair JSON using AI (Claude)' : 'Set Anthropic API key first (⚙)'}
+          ai
+          disabled={aiLoading}
+        >
+          {aiLoading ? '⏳ AI…' : '🤖 AI Repair'}
+        </Btn>
+        <button
+          className="tb-btn"
+          onClick={onOpenApiSettings}
+          title="Configure Anthropic API key for AI repair"
+          style={{ padding: '3px 7px' }}
+        >
+          ⚙
+        </button>
         <Btn onClick={onSortKeys} title="Sort all object keys alphabetically">
           🔤 Sort Keys
         </Btn>

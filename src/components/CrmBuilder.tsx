@@ -272,11 +272,15 @@ function generateScript(p: {
 
 // ─── UI helpers ───────────────────────────────────────────────────────────────
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
     <div className="cb-card">
-      <div className="cb-card__title">{title}</div>
-      <div className="cb-card__body">{children}</div>
+      <div className="cb-card__title" onClick={() => setOpen(o => !o)}>
+        <span className="cb-card__arrow">{open ? '▾' : '▸'}</span>
+        {title}
+      </div>
+      {open && <div className="cb-card__body">{children}</div>}
     </div>
   )
 }
@@ -433,7 +437,7 @@ export function CrmBuilder({ onLoadInEditor }: { onLoadInEditor: (json: string) 
   const [autoAlias, setAutoAlias] = useState(true)
 
   // 2 · HTTP Steps
-  const [steps, setSteps] = useState<HttpStep[]>([makeStep(1)])
+  const [steps, setSteps] = useState<HttpStep[]>([makeStep(1), makeStep(2)])
 
   // 3 · Auth & headers
   const [addApiKeyField, setAddApiKeyField] = useState(false)
@@ -596,7 +600,7 @@ export function CrmBuilder({ onLoadInEditor }: { onLoadInEditor: (json: string) 
         </Card>
 
         {/* 3 · Authentication & Headers */}
-        <Card title="3 · Authentication & Headers">
+        <Card title="3 · Authentication & Headers" defaultOpen={false}>
           <div className="cb-presets">
             <span className="cb-hint" style={{ marginRight: 4 }}>Quick add:</span>
             {HEADER_PRESETS.map(p => (
@@ -630,7 +634,7 @@ export function CrmBuilder({ onLoadInEditor }: { onLoadInEditor: (json: string) 
         </Card>
 
         {/* 4 · Lead Data Fields */}
-        <Card title="4 · Lead Data Fields">
+        <Card title="4 · Lead Data Fields" defaultOpen={false}>
           <p className="cb-hint" style={{ marginBottom: 10 }}>
             Select which lead fields to include. Rename the API field name to match what the endpoint expects.
             These fields are automatically included in Step 1's body.
@@ -655,7 +659,7 @@ export function CrmBuilder({ onLoadInEditor }: { onLoadInEditor: (json: string) 
         </Card>
 
         {/* 5 · Static Config Values */}
-        <Card title="5 · Static Config Values">
+        <Card title="5 · Static Config Values" defaultOpen={false}>
           <p className="cb-hint" style={{ marginBottom: 10 }}>
             Fixed values sent with every lead — company name, source ID, campaign codes, etc.
           </p>
@@ -672,7 +676,7 @@ export function CrmBuilder({ onLoadInEditor }: { onLoadInEditor: (json: string) 
         </Card>
 
         {/* 6 · Data Providers */}
-        <Card title="6 · Data Providers">
+        <Card title="6 · Data Providers" defaultOpen={false}>
           <p className="cb-hint" style={{ marginBottom: 10 }}>Enable extra data sources available in the lead payload.</p>
           {([
             ['form_data',           'Form Data',           'Access d.lead_form_data.* (address from form input)'],
@@ -688,7 +692,7 @@ export function CrmBuilder({ onLoadInEditor }: { onLoadInEditor: (json: string) 
         </Card>
 
         {/* 7 · Date Transforms */}
-        <Card title="7 · Date Transforms (optional)">
+        <Card title="7 · Date Transforms (optional)" defaultOpen={false}>
           <p className="cb-hint" style={{ marginBottom: 10 }}>
             Convert unix timestamps into formatted strings. A <code>logic_var_set</code> action is generated automatically.
           </p>
@@ -727,7 +731,7 @@ export function CrmBuilder({ onLoadInEditor }: { onLoadInEditor: (json: string) 
         </Card>
 
         {/* 8 · Delivery Checker */}
-        <Card title="8 · Delivery Checker">
+        <Card title="8 · Delivery Checker" defaultOpen={false}>
           <p className="cb-hint" style={{ marginBottom: 10 }}>Define the conditions that determine a successful delivery.</p>
 
           {steps.length > 1 && (

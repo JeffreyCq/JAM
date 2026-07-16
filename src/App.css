@@ -1,4 +1,4 @@
-/* ─── Variables ──────────────────────────────────────────────────────────────── */
+/* ─── Variables — dark (default) ────────────────────────────────────────────── */
 :root {
   --bg: #1e1e2e;
   --surface0: #181825;
@@ -7,6 +7,7 @@
   --border: #585b70;
   --text: #cdd6f4;
   --subtext: #a6adc8;
+  --subtext0: #a6adc8;
   --muted: #6c7086;
   --blue: #89b4fa;
   --green: #a6e3a1;
@@ -19,6 +20,27 @@
   --toolbar-h: 44px;
   --statusbar-h: 26px;
   --tab-bar-h: 36px;
+}
+
+/* ─── Variables — light ──────────────────────────────────────────────────────── */
+:root[data-theme="light"] {
+  --bg: #eff1f5;
+  --surface0: #e6e9ef;
+  --surface1: #ccd0da;
+  --surface2: #b5bfe2;
+  --border: #9ca0b0;
+  --text: #4c4f69;
+  --subtext: #6c6f85;
+  --subtext0: #6c6f85;
+  --muted: #8c8fa1;
+  --blue: #1e66f5;
+  --green: #40a02b;
+  --yellow: #df8e1d;
+  --red: #d20f39;
+  --mauve: #8839ef;
+  --teal: #179299;
+  --peach: #fe640b;
+  --accent: #1e66f5;
 }
 
 /* ─── Reset ──────────────────────────────────────────────────────────────────── */
@@ -110,6 +132,30 @@ body {
 .tb-btn:active { background: var(--surface2) }
 .tb-btn--active { background: var(--surface1); border-color: var(--accent); color: var(--accent) }
 .tb-btn--danger:hover { border-color: var(--red); color: var(--red) }
+.tb-btn--ai { border-color: color-mix(in srgb, var(--mauve) 60%, transparent) }
+.tb-btn--ai:hover { border-color: var(--mauve); color: var(--mauve) }
+.tb-btn--ai.tb-btn--loading { opacity: 0.6; cursor: not-allowed }
+
+/* API key modal */
+.api-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.api-modal {
+  background: var(--surface0); border: 1px solid var(--border); border-radius: 8px;
+  padding: 20px; min-width: 380px; display: flex; flex-direction: column; gap: 12px;
+}
+.api-modal h3 { margin: 0; font-size: 15px; color: var(--text) }
+.api-modal p { margin: 0; font-size: 12px; color: var(--subtext0) }
+.api-modal input {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+  color: var(--text); padding: 6px 10px; font-size: 13px; font-family: monospace; width: 100%; box-sizing: border-box;
+}
+.api-modal input:focus { outline: none; border-color: var(--accent) }
+.api-modal__btns { display: flex; gap: 8px; justify-content: flex-end }
+.api-modal__btns button { padding: 5px 14px; border-radius: 4px; border: 1px solid var(--border);
+  background: var(--surface1); color: var(--text); cursor: pointer; font-size: 13px }
+.api-modal__btns .btn-save { background: var(--accent); border-color: var(--accent); color: var(--bg) }
 
 .tb-divider {
   width: 1px;
@@ -300,12 +346,19 @@ body {
 .tree-boolean { color: var(--yellow) }
 .tree-null { color: var(--red); font-style: italic }
 
-/* Hover actions */
+/* Hover actions — float above the row */
 .tn-actions {
   display: flex;
   gap: 3px;
-  margin-left: auto;
-  padding-right: 4px;
+  position: absolute;
+  bottom: 100%;
+  right: 4px;
+  z-index: 100;
+  background: var(--surface0);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 .tn-act {
   padding: 1px 6px;
@@ -447,6 +500,19 @@ body {
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
+.tab-bar__spacer { flex: 1 }
+.theme-toggle {
+  padding: 3px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--subtext);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  transition: background 0.1s, border-color 0.1s;
+}
+.theme-toggle:hover { background: var(--surface1); border-color: var(--accent); color: var(--text) }
 
 .tab-btn {
   padding: 5px 16px;
@@ -543,6 +609,11 @@ body {
 }
 
 .cb-card__title {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 12px;
   background: var(--surface1);
   border-bottom: 1px solid var(--border);
@@ -556,6 +627,8 @@ body {
 .cb-card__body {
   padding: 12px;
 }
+.cb-card__title:hover { background: color-mix(in srgb, var(--surface1) 70%, var(--accent) 30%) }
+.cb-card__arrow { font-size: 11px; flex-shrink: 0; color: var(--subtext0) }
 
 /* ─── CRM Builder: Form rows ─────────────────────────────────────────────────── */
 .cb-form-row {

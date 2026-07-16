@@ -29,26 +29,8 @@ function sendFile(win: BrowserWindow, filePath: string): void {
   }
 }
 
-let mainWindow: BrowserWindow | null = null
-
-// Single-instance lock: if user double-clicks another JSON while app is open,
-// bring the existing window to front and open the file there.
-const gotLock = app.requestSingleInstanceLock()
-if (!gotLock) {
-  app.quit()
-} else {
-  app.on('second-instance', (_, argv) => {
-    const filePath = getFileArgFromArgv(argv)
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore()
-      mainWindow.focus()
-      if (filePath) sendFile(mainWindow, filePath)
-    }
-  })
-}
-
 function createWindow(): void {
-  mainWindow = new BrowserWindow({
+  const win = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 900,
@@ -63,9 +45,6 @@ function createWindow(): void {
     show: false
   })
 
-  const win = mainWindow
-
-  // Send the file once the renderer has fully loaded
   win.webContents.once('did-finish-load', () => {
     const filePath = getFileArgFromArgv(process.argv)
     if (filePath) sendFile(win, filePath)
@@ -78,8 +57,6 @@ function createWindow(): void {
   } else {
     win.loadFile(join(__dirname, '../renderer/index.html'))
   }
-
-  win.on('closed', () => { mainWindow = null })
 }
 
 ipcMain.handle('open-file', async () => {
