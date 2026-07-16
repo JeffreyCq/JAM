@@ -29,6 +29,20 @@ function sendFile(win: BrowserWindow, filePath: string): void {
   }
 }
 
+// macOS fires open-file before app is ready when user double-clicks or uses Open With.
+// Queue paths here and drain them once the window finishes loading.
+const pendingMacFiles: string[] = []
+
+app.on('open-file', (event, filePath) => {
+  event.preventDefault()
+  const wins = BrowserWindow.getAllWindows()
+  if (wins.length > 0) {
+    sendFile(wins[wins.length - 1], filePath)
+  } else {
+    pendingMacFiles.push(filePath)
+  }
+})
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1400,
@@ -46,8 +60,13 @@ function createWindow(): void {
   })
 
   win.webContents.once('did-finish-load', () => {
-    const filePath = getFileArgFromArgv(process.argv)
-    if (filePath) sendFile(win, filePath)
+    // Windows/Linux: file passed via argv
+    const argvFile = getFileArgFromArgv(process.argv)
+    if (argvFile) { sendFile(win, argvFile); return }
+    // macOS: file queued from open-file event before window existed
+    if (pendingMacFiles.length > 0) {
+      sendFile(win, pendingMacFiles.shift()!)
+    }
   })
 
   win.once('ready-to-show', () => win.show())

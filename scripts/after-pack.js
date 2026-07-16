@@ -15,7 +15,24 @@ const { promisify } = require('util')
 const execFileAsync = promisify(execFile)
 
 module.exports = async function afterPack(context) {
-  // Only applies to Windows builds
+  // ── macOS: ad-hoc sign so Gatekeeper doesn't block the app ──────────────────
+  if (context.electronPlatformName === 'darwin') {
+    const appPath = path.join(context.appOutDir, 'HomebuddyFormatter.app')
+    if (!fs.existsSync(appPath)) {
+      console.warn('[after-pack] .app not found:', appPath)
+      return
+    }
+    console.log('[after-pack] Ad-hoc signing macOS app…')
+    try {
+      await execFileAsync('codesign', ['--force', '--deep', '--sign', '-', appPath])
+      console.log('[after-pack] ✅ Ad-hoc signed')
+    } catch (e) {
+      console.warn('[after-pack] codesign failed (non-fatal):', e.message)
+    }
+    return
+  }
+
+  // ── Windows: embed icon via rcedit ───────────────────────────────────────────
   if (context.electronPlatformName !== 'win32') return
 
   const exePath   = path.join(context.appOutDir, 'HomebuddyFormatter.exe')

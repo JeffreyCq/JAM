@@ -1,6 +1,6 @@
 {
   "name": "homebuddy-formatter",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "description": "JSON Analyzer & Formatter — format, repair, tree view, and more",
   "main": "out/main/index.js",
   "scripts": {
