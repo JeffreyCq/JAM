@@ -1,4 +1,5 @@
 import React from 'react'
+import jamIcon from '../assets/jam-icon.png'
 
 export interface RecentFile {
   path: string
@@ -26,9 +27,9 @@ export function Welcome({ onOpenFile, onNewFile, recentFiles, onOpenRecent, isMa
   return (
     <div className="welcome">
       <div className="welcome__hero">
-        <div className="welcome__logo">{'{ }'}</div>
-        <h1 className="welcome__title">Jtools</h1>
-        <p className="welcome__subtitle">JSON Analyzer &amp; Formatter</p>
+        <img src={jamIcon} className="welcome__logo" alt="" />
+        <h1 className="welcome__title">JAM</h1>
+        <p className="welcome__subtitle">JSON Any Modifier</p>
 
         <div className="welcome__actions">
           <button className="welcome__btn welcome__btn--primary" onClick={onOpenFile}>

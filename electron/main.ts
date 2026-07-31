@@ -6,7 +6,7 @@ import { execFile } from 'child_process'
 
 // Must run before app.whenReady() — this is what the Dock/menu bar (macOS) and
 // taskbar (Windows) show instead of the generic "Electron" label in dev mode.
-app.setName('Jtools')
+app.setName('JAM')
 
 function resolveIcon(): string | undefined {
   const candidates = [
@@ -240,9 +240,10 @@ function patchFileTypeIcons(): void {
   // PowerShell snippet:
   // For each extension, find what ProgId is currently registered under
   // HKCU\Software\Classes\.ext (where electron-builder writes for per-user installs).
-  // If the ProgId was set by our app (contains "HomebuddyFormatter"), patch its DefaultIcon.
-  // Also write directly to the two most common ProgId formats electron-builder uses,
-  // so we cover per-machine installs too.
+  // If the ProgId was set by our app (contains "JAM"), patch its DefaultIcon.
+  // Also write directly to the common ProgId formats electron-builder uses
+  // (current "JAM"/appId, plus the old Homebuddy/Jtools names for anyone
+  // upgrading from a pre-rename install), so we cover per-machine installs too.
   const ico = iconPath.replace(/\\/g, '\\\\')
   const ps = `
 $ico = '${ico},0'
@@ -254,8 +255,9 @@ foreach ($e in $exts) {
     New-Item -Path "HKCU:\\Software\\Classes\\$pid\\DefaultIcon" -Force -EA SilentlyContinue | Out-Null
     Set-ItemProperty "HKCU:\\Software\\Classes\\$pid\\DefaultIcon" '(default)' $ico -EA SilentlyContinue
   }
-  # also patch both common ProgId formats electron-builder may have used
-  foreach ($prog in @("HomebuddyFormatter.$e","com.homebuddy.formatter.$e")) {
+  # also patch common ProgId formats electron-builder may have used —
+  # current app name/id, plus the pre-rename Homebuddy/Jtools names
+  foreach ($prog in @("JAM.$e","com.jam.jsonmodifier.$e","HomebuddyFormatter.$e","com.homebuddy.formatter.$e","Jtools.$e")) {
     if (Test-Path "HKCU:\\Software\\Classes\\$prog") {
       New-Item -Path "HKCU:\\Software\\Classes\\$prog\\DefaultIcon" -Force -EA SilentlyContinue | Out-Null
       Set-ItemProperty "HKCU:\\Software\\Classes\\$prog\\DefaultIcon" '(default)' $ico -EA SilentlyContinue

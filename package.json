@@ -1,7 +1,7 @@
 {
-  "name": "homebuddy-formatter",
+  "name": "jam",
   "version": "1.2.0",
-  "description": "JSON Analyzer & Formatter — format, repair, tree view, and more",
+  "description": "JAM — JSON Any Modifier: format, repair, tree view, and more",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -36,8 +36,8 @@
     "typescript": "^5.5.4"
   },
   "build": {
-    "appId": "com.homebuddy.formatter",
-    "productName": "Jtools",
+    "appId": "com.jam.jsonmodifier",
+    "productName": "JAM",
     "copyright": "Copyright © 2026",
     "afterPack": "scripts/after-pack.js",
     "asar": true,
@@ -86,7 +86,7 @@
     "mac": {
       "category": "public.app-category.developer-tools",
       "icon": "icon.icns",
-      "identity": "Jtools Internal Code Signing",
+      "identity": "JAM Internal Code Signing",
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "target": [
@@ -149,7 +149,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Jtools",
+      "shortcutName": "JAM",
       "deleteAppDataOnUninstall": false,
       "include": "build/installer.nsh"
     }

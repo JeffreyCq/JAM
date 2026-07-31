@@ -5,3 +5,4 @@ dist/
 *.local
 .env
 build/codesign/
+.DS_Store

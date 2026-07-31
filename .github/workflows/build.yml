@@ -8,7 +8,7 @@ on:
       - 'v*'
 
 # macOS builds are NOT produced here on purpose: they're signed locally with a
-# self-signed "Jtools Internal Code Signing" certificate that only lives in one
+# self-signed "JAM Internal Code Signing" certificate that only lives in one
 # machine's keychain (see build.mac.identity in package.json and
 # scripts/after-pack.js). A CI runner has no access to that certificate, so a
 # CI-built .dmg would only ever be ad-hoc-signed — worse than, and liable to

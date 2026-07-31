@@ -10,6 +10,7 @@ import { CrmBuilder } from './components/CrmBuilder'
 import { Tip } from './components/Tip'
 import { ThemePicker, isDarkTheme } from './components/ThemePicker'
 import { Welcome, type RecentFile } from './components/Welcome'
+import jamIcon from './assets/jam-icon.png'
 import {
   format,
   minify,
@@ -695,8 +696,8 @@ export default function App() {
       {/* ── Mode tab bar ── */}
       <div className="tab-bar">
         <div className="app-brand">
-          <span className="app-brand__logo">{'{ }'}</span>
-          <span className="app-brand__name">Jtools</span>
+          <img src={jamIcon} className="app-brand__logo" alt="" />
+          <span className="app-brand__name">JAM</span>
         </div>
         <div className="tab-bar__spacer" />
         <Tip label="Editor">
