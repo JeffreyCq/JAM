@@ -5,6 +5,10 @@
  * winCodeSign symlink issue on Windows machines without Developer Mode.
  *
  * Runs automatically after `npm run dist:win`.
+ *
+ * macOS signing is handled by electron-builder itself (see build.mac.identity
+ * in package.json — a local self-signed "Jtools Internal Code Signing"
+ * certificate), so there's nothing to do here for darwin builds.
  */
 
 const path       = require('path')
@@ -15,29 +19,12 @@ const { promisify } = require('util')
 const execFileAsync = promisify(execFile)
 
 module.exports = async function afterPack(context) {
+  // ── Windows: embed icon via rcedit ───────────────────────────────────────────
+  if (context.electronPlatformName !== 'win32') return
+
   // Derived from package.json's build.productName — stays correct across renames
   // instead of hardcoding the app/exe filename here.
   const productFilename = context.packager.appInfo.productFilename
-
-  // ── macOS: ad-hoc sign so Gatekeeper doesn't block the app ──────────────────
-  if (context.electronPlatformName === 'darwin') {
-    const appPath = path.join(context.appOutDir, `${productFilename}.app`)
-    if (!fs.existsSync(appPath)) {
-      console.warn('[after-pack] .app not found:', appPath)
-      return
-    }
-    console.log('[after-pack] Ad-hoc signing macOS app…')
-    try {
-      await execFileAsync('codesign', ['--force', '--deep', '--sign', '-', appPath])
-      console.log('[after-pack] ✅ Ad-hoc signed')
-    } catch (e) {
-      console.warn('[after-pack] codesign failed (non-fatal):', e.message)
-    }
-    return
-  }
-
-  // ── Windows: embed icon via rcedit ───────────────────────────────────────────
-  if (context.electronPlatformName !== 'win32') return
 
   const exePath   = path.join(context.appOutDir, `${productFilename}.exe`)
   const icoPath   = path.resolve(__dirname, '..', 'build', 'icon.ico')

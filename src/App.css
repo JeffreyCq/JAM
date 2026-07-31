@@ -49,6 +49,71 @@
   --shadow-md: 0 12px 32px rgba(76, 79, 105, 0.18);
 }
 
+/* ─── Variables — matrix (green-on-black terminal) ───────────────────────────── */
+:root[data-theme="matrix"] {
+  --bg: #0a0f0a;
+  --surface0: #050805;
+  --surface1: #0f1e0f;
+  --surface2: #1a3319;
+  --border: #1f5c1f;
+  --text: #00ff41;
+  --subtext: #00cc35;
+  --subtext0: #00cc35;
+  --muted: #157a24;
+  --blue: #00e5ff;
+  --green: #00ff41;
+  --yellow: #caff00;
+  --red: #ff2b6d;
+  --mauve: #7cff6b;
+  --teal: #00ffc8;
+  --peach: #baff29;
+  --accent: #00ff41;
+}
+
+/* ─── Variables — pink flamingo (bright, playful, light) ─────────────────────── */
+:root[data-theme="flamingo"] {
+  --bg: #fff0f6;
+  --surface0: #ffe4ef;
+  --surface1: #ffd1e6;
+  --surface2: #ffb8d9;
+  --border: #ff8fc4;
+  --text: #6b2145;
+  --subtext: #a84577;
+  --subtext0: #a84577;
+  --muted: #c17aa0;
+  --blue: #2596a1;
+  --green: #2fbf8f;
+  --yellow: #e69200;
+  --red: #e63950;
+  --mauve: #d63aa0;
+  --teal: #00998c;
+  --peach: #ff6f45;
+  --accent: #ff5da2;
+  --shadow-sm: 0 1px 3px rgba(107, 33, 69, 0.15);
+  --shadow-md: 0 12px 32px rgba(107, 33, 69, 0.22);
+}
+
+/* ─── Variables — sunset (deep purple + warm orange/gold) ────────────────────── */
+:root[data-theme="sunset"] {
+  --bg: #241123;
+  --surface0: #2f1730;
+  --surface1: #3d1f42;
+  --surface2: #4d2955;
+  --border: #6b3670;
+  --text: #ffe8d6;
+  --subtext: #e0b8c9;
+  --subtext0: #e0b8c9;
+  --muted: #9c7591;
+  --blue: #f7b267;
+  --green: #ffd166;
+  --yellow: #ffd166;
+  --red: #ff5c7a;
+  --mauve: #c86dd7;
+  --teal: #f7b267;
+  --peach: #ff8a5c;
+  --accent: #ff8a5c;
+}
+
 /* ─── Reset ──────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
 
@@ -785,6 +850,51 @@ body {
   box-shadow: var(--shadow-sm);
 }
 .tab-btn--active:hover { transform: none }
+
+.tab-btn--icon {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  justify-content: center;
+  font-size: 15px;
+}
+
+/* ─── Theme picker dropdown ───────────────────────────────────────────────────── */
+.theme-menu {
+  position: fixed;
+  min-width: 190px;
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  z-index: 9000;
+  animation: menuFadeIn 0.12s ease;
+}
+.theme-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 9px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12.5px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.theme-menu__item:hover { background: var(--surface2) }
+.theme-menu__item--active { font-weight: 600 }
+.theme-menu__swatch { display: flex; flex-shrink: 0; border-radius: 3px; overflow: hidden }
+.theme-menu__swatch span { width: 10px; height: 18px }
+.theme-menu__name { flex: 1 }
+.theme-menu__check { color: var(--accent); font-weight: 700 }
 
 /* ─── File tabs (multi-file open) ───────────────────────────────────────────── */
 .file-tab-bar {

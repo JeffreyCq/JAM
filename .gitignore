@@ -4,3 +4,4 @@ release/
 dist/
 *.local
 .env
+build/codesign/

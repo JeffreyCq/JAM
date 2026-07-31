@@ -1,6 +1,6 @@
 {
   "name": "homebuddy-formatter",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "JSON Analyzer & Formatter — format, repair, tree view, and more",
   "main": "out/main/index.js",
   "scripts": {
@@ -86,6 +86,7 @@
     "mac": {
       "category": "public.app-category.developer-tools",
       "icon": "icon.icns",
+      "identity": "Jtools Internal Code Signing",
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "target": [

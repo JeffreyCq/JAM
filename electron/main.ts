@@ -44,6 +44,17 @@ async function sendFiles(win: BrowserWindow, filePaths: string[]): Promise<void>
   }
 }
 
+// Brings the window to the front and gives it focus — used whenever a file is
+// opened from outside the app (double-click, "Open With", or a second launch
+// while already running), so the user actually sees what just opened instead
+// of it silently loading behind other windows.
+function focusWindow(win: BrowserWindow): void {
+  if (win.isMinimized()) win.restore()
+  if (!win.isVisible()) win.show()
+  win.focus()
+  if (process.platform === 'darwin') app.focus({ steal: true })
+}
+
 // macOS fires open-file (once per file, synchronously, back-to-back) before the
 // app is ready when the user double-clicks or uses Open With — and can also fire
 // it while the app is already running. Queue paths here and flush as a batch
@@ -58,7 +69,9 @@ function scheduleMacFlush(): void {
     macFlushScheduled = false
     const wins = BrowserWindow.getAllWindows()
     if (wins.length === 0 || pendingMacFiles.length === 0) return
-    sendFiles(wins[wins.length - 1], pendingMacFiles.splice(0))
+    const win = wins[wins.length - 1]
+    focusWindow(win)
+    sendFiles(win, pendingMacFiles.splice(0))
   })
 }
 
@@ -143,16 +156,18 @@ async function createWindow(): Promise<void> {
     // Windows/Linux: files passed via argv (can be more than one)
     const argvFiles = getFileArgsFromArgv(process.argv)
     if (argvFiles.length > 0) {
+      focusWindow(win)
       sendFiles(win, argvFiles)
       return
     }
     // macOS: files queued from open-file events before window existed
     if (pendingMacFiles.length > 0) {
+      focusWindow(win)
       sendFiles(win, pendingMacFiles.splice(0))
     }
   })
 
-  win.once('ready-to-show', () => win.show())
+  win.once('ready-to-show', () => focusWindow(win))
 
   win.on('resize', () => scheduleSaveWindowState(win))
   win.on('move', () => scheduleSaveWindowState(win))

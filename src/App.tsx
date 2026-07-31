@@ -8,6 +8,7 @@ import { JsonTree } from './components/JsonTree'
 import { StatusBar } from './components/StatusBar'
 import { CrmBuilder } from './components/CrmBuilder'
 import { Tip } from './components/Tip'
+import { ThemePicker, isDarkTheme } from './components/ThemePicker'
 import { Welcome, type RecentFile } from './components/Welcome'
 import {
   format,
@@ -188,10 +189,7 @@ export default function App() {
   const [showApiSettings, setShowApiSettings] = useState(false)
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('anthropic_api_key') ?? '')
   const [apiKeyDraft, setApiKeyDraft] = useState('')
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    const saved = localStorage.getItem('app_theme')
-    return (saved === 'light' ? 'light' : 'dark') as 'dark' | 'light'
-  })
+  const [theme, setTheme] = useState<string>(() => localStorage.getItem('app_theme') ?? 'dark')
   const dragging = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const isMac = window.electronAPI?.platform === 'darwin'
@@ -259,13 +257,14 @@ export default function App() {
     }
   }, [files])
 
-  // Apply theme to <html> element
+  // Apply theme to <html> element ('dark' is the base look defined on :root,
+  // every other theme is an override keyed by data-theme)
   useEffect(() => {
     const root = document.documentElement
-    if (theme === 'light') {
-      root.setAttribute('data-theme', 'light')
-    } else {
+    if (theme === 'dark') {
       root.removeAttribute('data-theme')
+    } else {
+      root.setAttribute('data-theme', theme)
     }
     localStorage.setItem('app_theme', theme)
   }, [theme])
@@ -699,28 +698,26 @@ export default function App() {
           <span className="app-brand__logo">{'{ }'}</span>
           <span className="app-brand__name">Jtools</span>
         </div>
-        <button
-          className={`tab-btn${activeTab === 'editor' ? ' tab-btn--active' : ''}`}
-          onClick={() => setActiveTab('editor')}
-        >
-          ✏ Editor
-        </button>
-        <button
-          className={`tab-btn${activeTab === 'builder' ? ' tab-btn--active' : ''}`}
-          onClick={() => setActiveTab('builder')}
-        >
-          🔨 CRM Builder
-        </button>
         <div className="tab-bar__spacer" />
-        <Tip label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
+        <Tip label="Editor">
           <button
-            className="theme-toggle"
-            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-            aria-label="Toggle theme"
+            className={`tab-btn tab-btn--icon${activeTab === 'editor' ? ' tab-btn--active' : ''}`}
+            onClick={() => setActiveTab('editor')}
+            aria-label="Editor"
           >
-            {theme === 'dark' ? '☀' : '🌙'}
+            ✏
           </button>
         </Tip>
+        <Tip label="CRM Builder">
+          <button
+            className={`tab-btn tab-btn--icon${activeTab === 'builder' ? ' tab-btn--active' : ''}`}
+            onClick={() => setActiveTab('builder')}
+            aria-label="CRM Builder"
+          >
+            🔨
+          </button>
+        </Tip>
+        <ThemePicker theme={theme} onSelect={setTheme} />
       </div>
 
       {/* ── Editor tab ── */}
@@ -829,7 +826,7 @@ export default function App() {
                 value={activeFile.content}
                 onChange={v => updateFile(activeFile.id, { content: v ?? '' })}
                 language="json"
-                theme={theme === 'dark' ? 'vs-dark' : 'vs-light'}
+                theme={isDarkTheme(theme) ? 'vs-dark' : 'vs-light'}
                 options={{
                   minimap: { enabled: false },
                   fontSize: 13,
@@ -994,7 +991,7 @@ export default function App() {
                   original={leftFile?.content ?? ''}
                   modified={rightFile?.content ?? ''}
                   language="json"
-                  theme={theme === 'dark' ? 'vs-dark' : 'vs-light'}
+                  theme={isDarkTheme(theme) ? 'vs-dark' : 'vs-light'}
                   options={{
                     readOnly: true,
                     renderSideBySide: true,
