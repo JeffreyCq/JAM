@@ -20,6 +20,10 @@
   --toolbar-h: 44px;
   --statusbar-h: 26px;
   --tab-bar-h: 36px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.4);
 }
 
 /* ─── Variables — light ──────────────────────────────────────────────────────── */
@@ -41,6 +45,8 @@
   --teal: #179299;
   --peach: #fe640b;
   --accent: #1e66f5;
+  --shadow-sm: 0 1px 3px rgba(76, 79, 105, 0.12);
+  --shadow-md: 0 12px 32px rgba(76, 79, 105, 0.18);
 }
 
 /* ─── Reset ──────────────────────────────────────────────────────────────────── */
@@ -94,6 +100,9 @@ body {
   padding: 0 8px;
   background: var(--surface0);
   border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  z-index: 1;
   flex-shrink: 0;
   overflow-x: auto;
   scrollbar-width: none;
@@ -120,16 +129,16 @@ body {
   padding: 4px 8px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   font-size: 12px;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.1s, border-color 0.1s;
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
   font-family: inherit;
 }
-.tb-btn:hover { background: var(--surface1); border-color: var(--border) }
-.tb-btn:active { background: var(--surface2) }
+.tb-btn:hover { background: var(--surface1); border-color: var(--border); transform: translateY(-1px) }
+.tb-btn:active { background: var(--surface2); transform: translateY(0) }
 .tb-btn--active { background: var(--surface1); border-color: var(--accent); color: var(--accent) }
 .tb-btn--danger:hover { border-color: var(--red); color: var(--red) }
 .tb-btn--ai { border-color: color-mix(in srgb, var(--mauve) 60%, transparent) }
@@ -142,7 +151,8 @@ body {
   display: flex; align-items: center; justify-content: center; z-index: 1000;
 }
 .api-modal {
-  background: var(--surface0); border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface0); border: 1px solid var(--border); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
   padding: 20px; min-width: 380px; display: flex; flex-direction: column; gap: 12px;
 }
 .api-modal h3 { margin: 0; font-size: 15px; color: var(--text) }
@@ -179,6 +189,57 @@ body {
 }
 .tb-indent-btn:hover { background: var(--surface2); color: var(--text) }
 .tb-indent-btn--active { background: var(--accent); border-color: var(--accent); color: var(--bg) }
+
+/* ─── Custom hover tooltips ("Tip" component) ────────────────────────────────── */
+.tip-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.tip-bubble {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 9px);
+  transform: translateX(-50%) translateY(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--text);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 4000;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.tip-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--surface2);
+}
+.tip-wrap:hover .tip-bubble,
+.tip-wrap:focus-within .tip-bubble {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  transition-delay: 0.35s;
+}
+.tip-bubble__title { font-weight: 600; color: var(--text) }
+.tip-bubble__hint {
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  color: var(--accent);
+  font-size: 10px;
+}
 
 /* ─── Tree panel header ──────────────────────────────────────────────────────── */
 .tree-header {
@@ -405,7 +466,7 @@ body {
   padding: 8px 16px;
   background: var(--surface1);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text);
   font-size: 13px;
   z-index: 9999;
@@ -493,45 +554,411 @@ body {
 .tab-bar {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 0 8px;
+  gap: 4px;
+  padding: 0 10px;
   height: 36px;
   background: var(--surface0);
   border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  z-index: 2;
   flex-shrink: 0;
 }
 .tab-bar__spacer { flex: 1 }
+
+/* macOS: window uses titleBarStyle "hiddenInset" — reserve room for the
+   traffic-light buttons and let the empty bar space double as a drag handle. */
+:root.is-mac .tab-bar {
+  -webkit-app-region: drag;
+  padding-left: 78px;
+}
+:root.is-mac .tab-bar button {
+  -webkit-app-region: no-drag;
+}
+
+/* Persistent app branding — visible across the whole app, not just Welcome */
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-right: 8px;
+  padding-right: 12px;
+  border-right: 1px solid var(--border);
+  height: 20px;
+}
+.app-brand__logo {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--accent), var(--mauve));
+  color: var(--bg);
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 10px;
+  font-weight: 700;
+}
+.app-brand__name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
 .theme-toggle {
   padding: 3px 10px;
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--subtext);
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
-  transition: background 0.1s, border-color 0.1s;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
 }
-.theme-toggle:hover { background: var(--surface1); border-color: var(--accent); color: var(--text) }
+.theme-toggle:hover { background: var(--surface1); border-color: var(--accent); color: var(--text); transform: translateY(-1px) }
 
 .tab-btn {
-  padding: 5px 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 5px 5px 0 0;
+  border-radius: var(--radius-sm);
+  color: var(--subtext);
+  font-size: 12.5px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.tab-btn:hover { background: var(--surface1); color: var(--text); transform: translateY(-1px) }
+.tab-btn--active {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface0));
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+.tab-btn--active:hover { transform: none }
+
+/* ─── File tabs (multi-file open) ───────────────────────────────────────────── */
+.file-tab-bar {
+  display: flex;
+  align-items: flex-end;
+  height: 34px;
+  padding: 4px 6px 0;
+  gap: 3px;
+  background: var(--surface0);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.file-tab-bar__scroll {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+.file-tab-bar__scroll::-webkit-scrollbar { display: none }
+
+.file-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 5px 10px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-top: 2px solid transparent;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   color: var(--subtext);
   font-size: 12px;
-  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: 220px;
+  position: relative;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+}
+.file-tab:hover { background: var(--surface1); color: var(--text) }
+.file-tab--active {
+  height: 30px;
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--border);
+  border-top-color: var(--accent);
+  border-bottom-color: var(--bg);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.file-tab__icon {
+  font-size: 11px;
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+.file-tab--active .file-tab__icon { opacity: 1; color: var(--accent) }
+
+.file-tab__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-tab__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 5px color-mix(in srgb, var(--yellow) 70%, transparent);
+  flex-shrink: 0;
+}
+
+.file-tab__close {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
   cursor: pointer;
   transition: background 0.1s, color 0.1s;
 }
-.tab-btn:hover { background: var(--surface1); color: var(--text) }
-.tab-btn--active {
+.file-tab__close:hover { background: var(--surface2); color: var(--red) }
+
+.file-tab-new {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  margin-bottom: 4px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--subtext);
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.file-tab-new:hover { background: var(--surface1); color: var(--accent) }
+
+/* ─── Welcome / startup screen ───────────────────────────────────────────────── */
+.welcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 36px;
+  padding: 40px 24px;
+  overflow-y: auto;
+  background:
+    radial-gradient(ellipse 900px 500px at 50% -10%, color-mix(in srgb, var(--accent) 10%, transparent), transparent),
+    var(--bg);
+}
+
+.welcome__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.welcome__logo {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent), var(--mauve));
+  color: var(--bg);
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
+}
+
+.welcome__title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.welcome__subtitle {
+  font-size: 13px;
+  color: var(--subtext);
+  margin-bottom: 8px;
+}
+
+.welcome__actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.welcome__btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 22px;
   background: var(--surface1);
-  border-color: var(--border);
-  border-bottom-color: var(--surface1);
-  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-size: 14px;
   font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.welcome__btn:hover {
+  background: var(--surface2);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.welcome__btn:active { transform: translateY(0) }
+
+.welcome__btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+.welcome__btn--primary:hover { filter: brightness(1.08); border-color: var(--accent) }
+
+.welcome__btn-icon { font-size: 18px; line-height: 1 }
+
+.welcome__panels {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+  max-width: 720px;
+}
+
+.welcome__panel {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface0);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.welcome__panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--subtext);
+  margin-bottom: 10px;
+}
+
+.welcome__empty {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.welcome__recent-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.welcome__recent-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+.welcome__recent-item:hover { background: var(--surface1); border-color: var(--border) }
+
+.welcome__recent-icon { font-size: 15px; flex-shrink: 0; color: var(--teal) }
+
+.welcome__recent-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.welcome__recent-name {
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.welcome__recent-path {
+  font-size: 10.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.welcome__shortcuts {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.welcome__shortcuts li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.welcome__shortcut-label {
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.welcome__kbd {
+  padding: 2px 8px;
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  color: var(--subtext);
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 /* ─── CRM Builder layout ─────────────────────────────────────────────────────── */

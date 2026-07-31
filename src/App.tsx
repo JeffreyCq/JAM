@@ -7,6 +7,8 @@ import { Toolbar } from './components/Toolbar'
 import { JsonTree } from './components/JsonTree'
 import { StatusBar } from './components/StatusBar'
 import { CrmBuilder } from './components/CrmBuilder'
+import { Tip } from './components/Tip'
+import { Welcome, type RecentFile } from './components/Welcome'
 import {
   format,
   minify,
@@ -21,33 +23,98 @@ import {
 // Use bundled Monaco (no CDN)
 loader.config({ monaco })
 
-const SAMPLE = `{
-  "app": "HomebuddyFormatter",
-  "version": "1.0.0",
-  "features": ["format", "minify", "repair", "sort", "escape", "tree view", "JSON Lines"],
-  "config": {
-    "indent": 2,
-    "theme": "dark",
-    "autoParse": true
-  },
-  "author": {
-    "name": "Jeffrey",
-    "active": true,
-    "score": 9.9,
-    "tags": null
+const RECENTS_KEY = 'recent_files'
+const RECENTS_MAX = 8
+
+function loadRecents(): RecentFile[] {
+  try {
+    const raw = localStorage.getItem(RECENTS_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
   }
-}`
+}
+
+function saveRecents(list: RecentFile[]): void {
+  localStorage.setItem(RECENTS_KEY, JSON.stringify(list))
+}
+
+interface FileTab {
+  id: string
+  name: string
+  filePath: string | null
+  content: string
+  savedContent: string
+  isJsonLines: boolean
+  selectedLine: number
+}
+
+let tabSeq = 0
+function nextTabId(): string {
+  tabSeq += 1
+  return `tab-${tabSeq}`
+}
+
+let untitledSeq = 0
+function nextUntitledName(): string {
+  untitledSeq += 1
+  return `Untitled-${untitledSeq}.json`
+}
+
+function makeTab(name: string, content: string, filePath: string | null = null): FileTab {
+  return {
+    id: nextTabId(),
+    name,
+    filePath,
+    content,
+    savedContent: content,
+    isJsonLines: false,
+    selectedLine: 0
+  }
+}
+
+interface IncomingFile {
+  path: string | null
+  name: string
+  content: string
+}
+
+// Merges newly opened files into the existing tab list: files already open (by path)
+// are refreshed and focused instead of duplicated, and the very first file opened
+// replaces a still-untouched default tab instead of piling on top of it.
+function computeNextFiles(
+  prev: FileTab[],
+  incoming: IncomingFile[]
+): { files: FileTab[]; focusId: string | null } {
+  let next = prev
+  let focusId: string | null = null
+  for (const f of incoming) {
+    const existingIdx = f.path ? next.findIndex(t => t.filePath === f.path) : -1
+    if (existingIdx !== -1) {
+      const existing = next[existingIdx]
+      next = next.map((t, i) => (i === existingIdx ? { ...t, content: f.content, savedContent: f.content } : t))
+      focusId = existing.id
+      continue
+    }
+    const tab = makeTab(f.name, f.content, f.path)
+    const onlyPristineTabOpen =
+      next.length === 1 && next[0].filePath === null && next[0].content === next[0].savedContent
+    next = onlyPristineTabOpen ? [tab] : [...next, tab]
+    focusId = tab.id
+  }
+  return { files: next, focusId }
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'editor' | 'builder'>('editor')
-  const [content, setContent] = useState(SAMPLE)
+  const [files, setFiles] = useState<FileTab[]>([])
+  const [activeId, setActiveId] = useState<string>('')
+  const [recentFiles, setRecentFiles] = useState<RecentFile[]>(() => loadRecents())
   const [parsedData, setParsedData] = useState<unknown>(null)
   const [error, setError] = useState<string | null>(null)
   const [treeKey, setTreeKey] = useState(0)
   const [search, setSearch] = useState('')
-  const [isJsonLines, setIsJsonLines] = useState(false)
   const [linesResult, setLinesResult] = useState<LinesResult | null>(null)
-  const [selectedLine, setSelectedLine] = useState(0)
   const [indentSize, setIndentSize] = useState(2)
   const [notification, setNotification] = useState<string | null>(null)
   const [leftPct, setLeftPct] = useState(50)
@@ -61,6 +128,34 @@ export default function App() {
   })
   const dragging = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const isMac = window.electronAPI?.platform === 'darwin'
+
+  const activeFile = files.find(f => f.id === activeId)
+
+  // Tags <html> so CSS can reserve room for macOS's traffic-light buttons
+  // in the tab bar (the window uses titleBarStyle: 'hiddenInset' there).
+  useEffect(() => {
+    if (isMac) document.documentElement.classList.add('is-mac')
+  }, [isMac])
+
+  const pushRecent = useCallback((path: string, name: string) => {
+    setRecentFiles(prev => {
+      const next = [{ path, name }, ...prev.filter(r => r.path !== path)].slice(0, RECENTS_MAX)
+      saveRecents(next)
+      return next
+    })
+  }, [])
+
+  // Lets async/event-driven handlers (IPC file-open events, tab close) update
+  // `files` via the functional setState form and still know which tab to focus
+  // afterward, without depending on possibly-stale `files`/`activeId` closures.
+  const focusIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (focusIdRef.current) {
+      setActiveId(focusIdRef.current)
+      focusIdRef.current = null
+    }
+  }, [files])
 
   // Apply theme to <html> element
   useEffect(() => {
@@ -73,19 +168,35 @@ export default function App() {
     localStorage.setItem('app_theme', theme)
   }, [theme])
 
-  // Parse JSON with 300ms debounce
+  // Parse the active tab's JSON. Switching tabs re-parses immediately (it's a
+  // discrete click, not a keystroke); typing still debounces at 300ms. Only the
+  // active tab is ever parsed — background tabs stay as plain strings, so having
+  // many files open costs no extra CPU/memory until you actually visit them.
+  const prevActiveIdRef = useRef<string | undefined>(activeFile?.id)
   useEffect(() => {
+    if (!activeFile) {
+      setParsedData(null)
+      setError(null)
+      setLinesResult(null)
+      return
+    }
+    const isTabSwitch = prevActiveIdRef.current !== activeFile.id
+    prevActiveIdRef.current = activeFile.id
+    const delay = isTabSwitch ? 0 : 300
     const t = setTimeout(() => {
-      if (isJsonLines) {
-        const res = parseLines(content)
+      if (activeFile.isJsonLines) {
+        const res = parseLines(activeFile.content)
         setLinesResult(res)
-        const idx = Math.min(selectedLine, res.results.length - 1)
-        setSelectedLine(Math.max(0, idx))
-        setParsedData(res.results[Math.max(0, idx)] ?? null)
+        const idx = Math.min(activeFile.selectedLine, res.results.length - 1)
+        const clamped = Math.max(0, idx)
+        if (clamped !== activeFile.selectedLine) {
+          setFiles(prev => prev.map(f => (f.id === activeFile.id ? { ...f, selectedLine: clamped } : f)))
+        }
+        setParsedData(res.results[clamped] ?? null)
         setError(res.errors.length > 0 ? `${res.errors.length} line(s) with errors` : null)
       } else {
         try {
-          const parsed = JSON.parse(content)
+          const parsed = JSON.parse(activeFile.content)
           setParsedData(parsed)
           setError(null)
         } catch (e) {
@@ -93,55 +204,80 @@ export default function App() {
           setError((e as Error).message)
         }
       }
-    }, 300)
+    }, delay)
     return () => clearTimeout(t)
-  }, [content, isJsonLines, selectedLine])
+  }, [activeFile?.id, activeFile?.content, activeFile?.isJsonLines, activeFile?.selectedLine])
 
   const notify = useCallback((msg: string) => {
     setNotification(msg)
     setTimeout(() => setNotification(null), 2000)
   }, [])
 
+  const updateFile = useCallback(
+    (id: string, patch: Partial<FileTab> | ((f: FileTab) => Partial<FileTab>)) => {
+      setFiles(prev =>
+        prev.map(f => (f.id === id ? { ...f, ...(typeof patch === 'function' ? patch(f) : patch) } : f))
+      )
+    },
+    []
+  )
+
+  const addOrFocusFiles = useCallback((incoming: IncomingFile[]) => {
+    setFiles(prev => {
+      const { files: next, focusId } = computeNextFiles(prev, incoming)
+      focusIdRef.current = focusId
+      return next
+    })
+  }, [])
+
   const apply = useCallback(
-    (fn: () => string, msg: string) => {
+    (fn: (current: string) => string, msg: string) => {
+      if (!activeFile) return
       try {
-        const result = fn()
-        setContent(result)
+        const result = fn(activeFile.content)
+        updateFile(activeFile.id, { content: result })
         setTreeKey(k => k + 1)
         notify(msg)
       } catch (e) {
         notify(`Error: ${(e as Error).message}`)
       }
     },
-    [notify]
+    [activeFile, updateFile, notify]
   )
 
-  // Listen for files opened via double-click / file association
+  // Listen for files opened via double-click / file association / "Open With"
   useEffect(() => {
     const api = window.electronAPI
     if (!api?.onFileOpen) return
     return api.onFileOpen((fileContent, filePath) => {
-      setContent(fileContent)
-      setTreeKey(k => k + 1)
       const name = filePath.split(/[/\\]/).pop() ?? filePath
+      addOrFocusFiles([{ path: filePath, name, content: fileContent }])
+      pushRecent(filePath, name)
       notify(`📂 ${name}`)
     })
-  }, [notify])
+  }, [addOrFocusFiles, pushRecent, notify])
 
-  const handleFormat = () => apply(() => format(content, indentSize), '✨ Formatted!')
-  const handleMinify = () => apply(() => minify(content), '⬛ Minified!')
-  const handleRepair = () => apply(() => repair(content), '🔧 Repaired!')
-  const handleSortKeys = () => apply(() => sortKeys(content, indentSize), '🔤 Keys sorted!')
-  const handleEscape = () => apply(() => escapeJson(content), '🔒 Escaped!')
-  const handleUnescape = () => apply(() => unescapeJson(content), '🔓 Unescaped!')
-  const handleClear = () => { setContent(''); setTreeKey(k => k + 1) }
+  const handleFormat = () => apply(c => format(c, indentSize), '✨ Formatted!')
+  const handleMinify = () => apply(c => minify(c), '⬛ Minified!')
+  const handleRepair = () => apply(c => repair(c), '🔧 Repaired!')
+  const handleSortKeys = () => apply(c => sortKeys(c, indentSize), '🔤 Keys sorted!')
+  const handleEscape = () => apply(c => escapeJson(c), '🔒 Escaped!')
+  const handleUnescape = () => apply(c => unescapeJson(c), '🔓 Unescaped!')
+  const handleClear = () => {
+    if (!activeFile) return
+    updateFile(activeFile.id, { content: '' })
+    setTreeKey(k => k + 1)
+  }
   const handleCopyAll = async () => {
-    await navigator.clipboard.writeText(content)
+    if (!activeFile) return
+    await navigator.clipboard.writeText(activeFile.content)
     notify('📋 Copied to clipboard!')
   }
 
   const handleAiRepair = async () => {
+    if (!activeFile) return
     if (!apiKey.trim()) { setShowApiSettings(true); return }
+    const targetId = activeFile.id
     setAiLoading(true)
     try {
       const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true })
@@ -150,13 +286,13 @@ export default function App() {
         max_tokens: 8192,
         messages: [{
           role: 'user',
-          content: `Fix this malformed JSON. Return ONLY valid JSON, no explanation, no markdown fences:\n\n${content}`
+          content: `Fix this malformed JSON. Return ONLY valid JSON, no explanation, no markdown fences:\n\n${activeFile.content}`
         }]
       })
       const raw = msg.content[0].type === 'text' ? msg.content[0].text : ''
       const match = raw.match(/```(?:json)?\n?([\s\S]*?)\n?```/)
       const repaired = (match ? match[1] : raw).trim()
-      setContent(repaired)
+      updateFile(targetId, { content: repaired })
       setTreeKey(k => k + 1)
       notify('🤖 AI repaired!')
     } catch (e) {
@@ -169,32 +305,99 @@ export default function App() {
   const handleOpenFile = async () => {
     const api = window.electronAPI
     if (!api) { notify('File API not available'); return }
-    const text = await api.openFile()
-    if (text !== null) {
-      setContent(text)
-      setTreeKey(k => k + 1)
-      notify('📂 File loaded!')
-    }
+    const opened = await api.openFile()
+    if (!opened || opened.length === 0) return
+    addOrFocusFiles(opened.map(f => ({ path: f.path, name: f.name, content: f.content })))
+    opened.forEach(f => pushRecent(f.path, f.name))
+    notify(opened.length === 1 ? `📂 ${opened[0].name}` : `📂 Opened ${opened.length} files`)
   }
 
-  const handleSaveFile = async () => {
+  const handleOpenRecent = useCallback(async (path: string) => {
+    const existing = files.find(f => f.filePath === path)
+    if (existing) { setActiveId(existing.id); return }
     const api = window.electronAPI
     if (!api) { notify('File API not available'); return }
-    const ok = await api.saveFile(content)
-    if (ok) notify('💾 Saved!')
+    const result = await api.readFile(path)
+    if (!result) {
+      notify('⚠ File not found — it may have been moved or deleted')
+      setRecentFiles(prev => {
+        const next = prev.filter(r => r.path !== path)
+        saveRecents(next)
+        return next
+      })
+      return
+    }
+    addOrFocusFiles([{ path: result.path, name: result.name, content: result.content }])
+    pushRecent(result.path, result.name)
+  }, [files, addOrFocusFiles, pushRecent, notify])
+
+  const handleSaveFile = async () => {
+    if (!activeFile) return
+    const api = window.electronAPI
+    if (!api) { notify('File API not available'); return }
+    const result = await api.saveFile(activeFile.content, activeFile.filePath, activeFile.name)
+    if (!result) return
+    const name = result.path.split(/[/\\]/).pop() ?? activeFile.name
+    updateFile(activeFile.id, {
+      filePath: result.path,
+      name,
+      savedContent: activeFile.content
+    })
+    pushRecent(result.path, name)
+    notify('💾 Saved!')
   }
+
+  const handleNewTab = useCallback(() => {
+    const tab = makeTab(nextUntitledName(), '')
+    setFiles(prev => [...prev, tab])
+    setActiveId(tab.id)
+  }, [])
+
+  const handleCloseTab = useCallback((id: string) => {
+    setFiles(prev => {
+      const idx = prev.findIndex(f => f.id === id)
+      if (idx === -1) return prev
+      const file = prev[idx]
+      if (file.content !== file.savedContent) {
+        const ok = window.confirm(`"${file.name}" has unsaved changes. Close without saving?`)
+        if (!ok) return prev
+      }
+      const next = prev.filter(f => f.id !== id)
+      // No tabs left: fall back to the welcome screen instead of forcing a blank one.
+      if (id === activeId && next.length > 0) {
+        const neighborIdx = Math.min(idx, next.length - 1)
+        focusIdRef.current = next[neighborIdx].id
+      }
+      return next
+    })
+  }, [activeId])
+
+  const handleBuilderLoad = useCallback((json: string) => {
+    const tab = makeTab('crm-script.json', json)
+    setFiles(prev => [...prev, tab])
+    setActiveId(tab.id)
+    setActiveTab('editor')
+    notify('🔨 Script loaded in editor!')
+  }, [notify])
 
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
-        e.preventDefault(); handleFormat()
-      }
       if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
         e.preventDefault(); handleOpenFile()
       }
+      if ((e.ctrlKey || e.metaKey) && e.key === 't') {
+        e.preventDefault(); handleNewTab()
+      }
+      if (!activeFile) return
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
+        e.preventDefault(); handleFormat()
+      }
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault(); handleSaveFile()
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'w') {
+        e.preventDefault(); handleCloseTab(activeFile.id)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -219,18 +422,15 @@ export default function App() {
   const linesErrors = linesResult?.errors.length ?? 0
   const linesCount = linesResult?.results.length ?? 0
 
-  const handleBuilderLoad = useCallback((json: string) => {
-    setContent(json)
-    setTreeKey(k => k + 1)
-    setActiveTab('editor')
-    notify('🔨 Script loaded in editor!')
-  }, [notify])
-
   return (
     <div className="app">
 
-      {/* ── Tab bar ── */}
+      {/* ── Mode tab bar ── */}
       <div className="tab-bar">
+        <div className="app-brand">
+          <span className="app-brand__logo">{'{ }'}</span>
+          <span className="app-brand__name">Jtools</span>
+        </div>
         <button
           className={`tab-btn${activeTab === 'editor' ? ' tab-btn--active' : ''}`}
           onClick={() => setActiveTab('editor')}
@@ -244,18 +444,63 @@ export default function App() {
           🔨 CRM Builder
         </button>
         <div className="tab-bar__spacer" />
-        <button
-          className="theme-toggle"
-          onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-        >
-          {theme === 'dark' ? '☀' : '🌙'}
-        </button>
+        <Tip label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
+          <button
+            className="theme-toggle"
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? '☀' : '🌙'}
+          </button>
+        </Tip>
       </div>
 
       {/* ── Editor tab ── */}
-      {activeTab === 'editor' && (
+      {activeTab === 'editor' && !activeFile && (
+        <Welcome
+          onOpenFile={handleOpenFile}
+          onNewFile={handleNewTab}
+          recentFiles={recentFiles}
+          onOpenRecent={handleOpenRecent}
+          isMac={isMac}
+        />
+      )}
+
+      {activeTab === 'editor' && activeFile && (
         <>
+          {/* ── Open-file tabs ── */}
+          <div className="file-tab-bar">
+            <div className="file-tab-bar__scroll">
+              {files.map(f => {
+                const dirty = f.content !== f.savedContent
+                return (
+                  <div
+                    key={f.id}
+                    className={`file-tab${f.id === activeFile.id ? ' file-tab--active' : ''}`}
+                    onClick={() => setActiveId(f.id)}
+                    title={f.filePath ?? f.name}
+                  >
+                    <span className="file-tab__icon">🗎</span>
+                    <span className="file-tab__name">{f.name}</span>
+                    {dirty && <span className="file-tab__dot" title="Unsaved changes" />}
+                    <button
+                      className="file-tab__close"
+                      onClick={e => { e.stopPropagation(); handleCloseTab(f.id) }}
+                      title="Close (Ctrl/Cmd+W)"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            <Tip label="New file" shortcut={isMac ? '⌘T' : 'Ctrl+T'}>
+              <button className="file-tab-new" onClick={handleNewTab} aria-label="New file">
+                +
+              </button>
+            </Tip>
+          </div>
+
           <Toolbar
             onFormat={handleFormat}
             onMinify={handleMinify}
@@ -267,8 +512,11 @@ export default function App() {
             onOpenFile={handleOpenFile}
             onSaveFile={handleSaveFile}
             onClear={handleClear}
-            isJsonLines={isJsonLines}
-            onToggleJsonLines={() => { setIsJsonLines(v => !v); setTreeKey(k => k + 1) }}
+            isJsonLines={activeFile.isJsonLines}
+            onToggleJsonLines={() => {
+              updateFile(activeFile.id, { isJsonLines: !activeFile.isJsonLines })
+              setTreeKey(k => k + 1)
+            }}
             indentSize={indentSize}
             onIndentSizeChange={setIndentSize}
             onAiRepair={handleAiRepair}
@@ -281,8 +529,9 @@ export default function App() {
             {/* Editor panel */}
             <div className="panel panel--editor" style={{ width: `${leftPct}%` }}>
               <Editor
-                value={content}
-                onChange={v => setContent(v ?? '')}
+                path={activeFile.id}
+                value={activeFile.content}
+                onChange={v => updateFile(activeFile.id, { content: v ?? '' })}
                 language="json"
                 theme={theme === 'dark' ? 'vs-dark' : 'vs-light'}
                 options={{
@@ -314,13 +563,16 @@ export default function App() {
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                 />
-                {isJsonLines && linesResult && linesResult.results.length > 0 && (
+                {activeFile.isJsonLines && linesResult && linesResult.results.length > 0 && (
                   <div className="jsonlines-nav">
                     {linesResult.results.map((_, i) => (
                       <button
                         key={i}
-                        className={`jl-btn${i === selectedLine ? ' jl-btn--active' : ''}`}
-                        onClick={() => { setSelectedLine(i); setParsedData(linesResult.results[i]) }}
+                        className={`jl-btn${i === activeFile.selectedLine ? ' jl-btn--active' : ''}`}
+                        onClick={() => {
+                          updateFile(activeFile.id, { selectedLine: i })
+                          setParsedData(linesResult.results[i])
+                        }}
                       >
                         #{i + 1}
                         {linesResult.errors.some(e => e.line === i + 1) && ' ⚠'}
@@ -330,14 +582,14 @@ export default function App() {
                 )}
               </div>
 
-              {error && !isJsonLines && (
+              {error && !activeFile.isJsonLines && (
                 <div className="parse-error">
                   <span>⚠ {error}</span>
                 </div>
               )}
 
               {parsedData !== null ? (
-                <JsonTree key={treeKey} data={parsedData} search={search} onNotify={notify} />
+                <JsonTree key={`${activeFile.id}-${treeKey}`} data={parsedData} search={search} onNotify={notify} />
               ) : (
                 <div className="tree-placeholder">
                   {error ? 'Fix the JSON error to see the tree' : 'Start typing or open a file…'}
@@ -347,10 +599,10 @@ export default function App() {
           </div>
 
           <StatusBar
-            content={content}
+            content={activeFile.content}
             parsedData={parsedData}
             error={error}
-            isJsonLines={isJsonLines}
+            isJsonLines={activeFile.isJsonLines}
             jsonLinesCount={linesCount}
             linesErrors={linesErrors}
           />

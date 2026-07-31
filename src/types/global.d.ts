@@ -1,10 +1,18 @@
 export {}
 
 declare global {
+  interface OpenedFile {
+    path: string
+    name: string
+    content: string
+  }
+
   interface Window {
     electronAPI?: {
-      openFile: () => Promise<string | null>
-      saveFile: (content: string, name?: string) => Promise<boolean>
+      platform: string
+      openFile: () => Promise<OpenedFile[] | null>
+      readFile: (filePath: string) => Promise<OpenedFile | null>
+      saveFile: (content: string, filePath?: string | null, name?: string) => Promise<{ path: string } | null>
       onFileOpen: (cb: (content: string, filePath: string) => void) => () => void
     }
     MonacoEnvironment?: {

@@ -1,11 +1,22 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+export interface OpenedFile {
+  path: string
+  name: string
+  content: string
+}
+
 contextBridge.exposeInMainWorld('electronAPI', {
-  openFile: (): Promise<string | null> =>
+  platform: process.platform,
+
+  openFile: (): Promise<OpenedFile[] | null> =>
     ipcRenderer.invoke('open-file'),
 
-  saveFile: (content: string, name?: string): Promise<boolean> =>
-    ipcRenderer.invoke('save-file', content, name),
+  readFile: (filePath: string): Promise<OpenedFile | null> =>
+    ipcRenderer.invoke('read-file', filePath),
+
+  saveFile: (content: string, filePath?: string | null, name?: string): Promise<{ path: string } | null> =>
+    ipcRenderer.invoke('save-file', content, filePath ?? null, name),
 
   onFileOpen: (cb: (content: string, filePath: string) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, content: string, filePath: string) =>

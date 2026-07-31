@@ -34,7 +34,7 @@
   },
   "build": {
     "appId": "com.homebuddy.formatter",
-    "productName": "HomebuddyFormatter",
+    "productName": "Jtools",
     "copyright": "Copyright © 2026",
     "afterPack": "scripts/after-pack.js",
     "asar": true,
@@ -46,8 +46,14 @@
       "out/**/*"
     ],
     "extraResources": [
-      { "from": "build/icon.png",      "to": "icon.png"      },
-      { "from": "build/icon-json.ico", "to": "icon-json.ico" }
+      {
+        "from": "build/icon.png",
+        "to": "icon.png"
+      },
+      {
+        "from": "build/icon-json.ico",
+        "to": "icon-json.ico"
+      }
     ],
     "extraMetadata": {
       "main": "out/main/index.js"
@@ -139,9 +145,15 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "HomebuddyFormatter",
+      "shortcutName": "Jtools",
       "deleteAppDataOnUninstall": false,
       "include": "build/installer.nsh"
     }
+  },
+  "allowScripts": {
+    "electron@32.3.3": true,
+    "electron-winstaller@5.4.0": true,
+    "esbuild@0.21.5": true,
+    "fsevents@2.3.3": true
   }
 }

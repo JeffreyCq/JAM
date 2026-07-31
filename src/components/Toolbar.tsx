@@ -1,4 +1,5 @@
 import React from 'react'
+import { Tip, splitHint } from './Tip'
 
 interface ToolbarProps {
   onFormat: () => void
@@ -38,15 +39,18 @@ function Btn({
   ai?: boolean
   disabled?: boolean
 }) {
+  const { label, shortcut } = splitHint(title)
   return (
-    <button
-      className={`tb-btn${active ? ' tb-btn--active' : ''}${danger ? ' tb-btn--danger' : ''}${ai ? ' tb-btn--ai' : ''}`}
-      onClick={onClick}
-      title={title}
-      disabled={disabled}
-    >
-      {children}
-    </button>
+    <Tip label={label} shortcut={shortcut}>
+      <button
+        className={`tb-btn${active ? ' tb-btn--active' : ''}${danger ? ' tb-btn--danger' : ''}${ai ? ' tb-btn--ai' : ''}`}
+        onClick={onClick}
+        aria-label={title}
+        disabled={disabled}
+      >
+        {children}
+      </button>
+    </Tip>
   )
 }
 
@@ -113,14 +117,16 @@ export function Toolbar({
         >
           {aiLoading ? '⏳ AI…' : '🤖 AI Repair'}
         </Btn>
-        <button
-          className="tb-btn"
-          onClick={onOpenApiSettings}
-          title="Configure Anthropic API key for AI repair"
-          style={{ padding: '3px 7px' }}
-        >
-          ⚙
-        </button>
+        <Tip label="Configure Anthropic API key for AI repair">
+          <button
+            className="tb-btn"
+            onClick={onOpenApiSettings}
+            aria-label="Configure Anthropic API key for AI repair"
+            style={{ padding: '3px 7px' }}
+          >
+            ⚙
+          </button>
+        </Tip>
         <Btn onClick={onSortKeys} title="Sort all object keys alphabetically">
           🔤 Sort Keys
         </Btn>
@@ -153,22 +159,25 @@ export function Toolbar({
       <div className="tb-group tb-group--indent">
         <span className="tb-label">Indent:</span>
         {[2, 4].map(n => (
-          <button
-            key={n}
-            className={`tb-indent-btn${indentSize === n ? ' tb-indent-btn--active' : ''}`}
-            onClick={() => onIndentSizeChange(n)}
-            title={`${n} spaces`}
-          >
-            {n}
-          </button>
+          <Tip key={n} label={`Indent with ${n} spaces`}>
+            <button
+              className={`tb-indent-btn${indentSize === n ? ' tb-indent-btn--active' : ''}`}
+              onClick={() => onIndentSizeChange(n)}
+              aria-label={`${n} spaces`}
+            >
+              {n}
+            </button>
+          </Tip>
         ))}
-        <button
-          className={`tb-indent-btn${indentSize === 1 ? ' tb-indent-btn--active' : ''}`}
-          onClick={() => onIndentSizeChange(1)}
-          title="Tabs (1)"
-        >
-          T
-        </button>
+        <Tip label="Indent with tabs">
+          <button
+            className={`tb-indent-btn${indentSize === 1 ? ' tb-indent-btn--active' : ''}`}
+            onClick={() => onIndentSizeChange(1)}
+            aria-label="Tabs"
+          >
+            T
+          </button>
+        </Tip>
       </div>
     </div>
   )

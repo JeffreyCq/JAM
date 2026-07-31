@@ -15,9 +15,13 @@ const { promisify } = require('util')
 const execFileAsync = promisify(execFile)
 
 module.exports = async function afterPack(context) {
+  // Derived from package.json's build.productName — stays correct across renames
+  // instead of hardcoding the app/exe filename here.
+  const productFilename = context.packager.appInfo.productFilename
+
   // ── macOS: ad-hoc sign so Gatekeeper doesn't block the app ──────────────────
   if (context.electronPlatformName === 'darwin') {
-    const appPath = path.join(context.appOutDir, 'HomebuddyFormatter.app')
+    const appPath = path.join(context.appOutDir, `${productFilename}.app`)
     if (!fs.existsSync(appPath)) {
       console.warn('[after-pack] .app not found:', appPath)
       return
@@ -35,7 +39,7 @@ module.exports = async function afterPack(context) {
   // ── Windows: embed icon via rcedit ───────────────────────────────────────────
   if (context.electronPlatformName !== 'win32') return
 
-  const exePath   = path.join(context.appOutDir, 'HomebuddyFormatter.exe')
+  const exePath   = path.join(context.appOutDir, `${productFilename}.exe`)
   const icoPath   = path.resolve(__dirname, '..', 'build', 'icon.ico')
   const rceditExe = path.resolve(__dirname, '..', 'node_modules', 'rcedit', 'bin', 'rcedit-x64.exe')
 
@@ -50,11 +54,11 @@ module.exports = async function afterPack(context) {
     '--set-icon',             icoPath,
     '--set-file-version',     '1.0.0.0',
     '--set-product-version',  '1.0.0',
-    '--set-version-string', 'ProductName',      'HomebuddyFormatter',
+    '--set-version-string', 'ProductName',      productFilename,
     '--set-version-string', 'FileDescription',  'JSON Analyzer & Formatter',
     '--set-version-string', 'CompanyName',      'Homebuddy',
     '--set-version-string', 'LegalCopyright',   'Copyright © 2026',
-    '--set-version-string', 'OriginalFilename', 'HomebuddyFormatter.exe',
+    '--set-version-string', 'OriginalFilename', `${productFilename}.exe`,
   ]
 
   await execFileAsync(rceditExe, args)
