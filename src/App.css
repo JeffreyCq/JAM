@@ -865,6 +865,180 @@ body {
 
 .compare-modal__diff { flex: 1; min-height: 0 }
 
+/* ─── Search all files modal ─────────────────────────────────────────────────── */
+.search-all-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 10vh;
+  z-index: 1000;
+}
+.search-all-modal {
+  width: 640px;
+  max-width: 92vw;
+  max-height: 70vh;
+  background: var(--surface0);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.search-all__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.search-all__input {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+.search-all__input:focus { border-color: var(--accent) }
+
+.search-all__results {
+  overflow-y: auto;
+  padding: 8px;
+}
+.search-all__hint {
+  padding: 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.search-all__group { margin-bottom: 8px }
+.search-all__file {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.search-all__file:hover { border-color: var(--accent) }
+.search-all__count {
+  margin-left: auto;
+  padding: 0 6px;
+  background: var(--surface2);
+  border-radius: 3px;
+  color: var(--subtext);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.search-all__line {
+  display: flex;
+  gap: 10px;
+  padding: 3px 10px 3px 26px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 11.5px;
+}
+.search-all__line:hover { background: var(--surface1) }
+.search-all__line-no { color: var(--muted); flex-shrink: 0; min-width: 24px; text-align: right }
+.search-all__line-text {
+  color: var(--subtext);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── JSON Schema validation modal ───────────────────────────────────────────── */
+.schema-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.schema-modal {
+  width: 640px;
+  max-width: 92vw;
+  max-height: 80vh;
+  background: var(--surface0);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.schema-modal__body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+.schema-modal__textarea {
+  width: 100%;
+  min-height: 220px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+.schema-modal__textarea:focus { border-color: var(--accent) }
+.schema-modal__actions { display: flex; justify-content: flex-end }
+
+.schema-result {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+}
+.schema-result--ok {
+  background: color-mix(in srgb, var(--green) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--green) 40%, transparent);
+  color: var(--green);
+}
+.schema-result--error {
+  background: color-mix(in srgb, var(--red) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--red) 35%, transparent);
+  color: var(--red);
+}
+.schema-result__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.schema-result__list code {
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  color: var(--peach);
+  margin-right: 6px;
+}
+
 /* ─── Welcome / startup screen ───────────────────────────────────────────────── */
 .welcome {
   flex: 1;

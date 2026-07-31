@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, screen } from 'electron'
 import { join, basename } from 'path'
 import { existsSync } from 'fs'
 import { readFile, writeFile } from 'fs/promises'
@@ -68,10 +68,60 @@ app.on('open-file', (event, filePath) => {
   if (BrowserWindow.getAllWindows().length > 0) scheduleMacFlush()
 })
 
-function createWindow(): void {
+// ─── Remember window size/position across launches ──────────────────────────
+interface WindowState {
+  width: number
+  height: number
+  x?: number
+  y?: number
+}
+
+const DEFAULT_WINDOW_STATE: WindowState = { width: 1400, height: 900 }
+
+function windowStatePath(): string {
+  return join(app.getPath('userData'), 'window-state.json')
+}
+
+async function loadWindowState(): Promise<WindowState> {
+  try {
+    const raw = await readFile(windowStatePath(), 'utf-8')
+    const state = JSON.parse(raw)
+    if (typeof state.width === 'number' && typeof state.height === 'number') return state
+  } catch {
+    // No saved state yet (first launch) — use the default.
+  }
+  return DEFAULT_WINDOW_STATE
+}
+
+// If the saved position is on a display that's no longer connected
+// (e.g. an external monitor was unplugged), fall back to letting the OS
+// place the window instead of restoring it off-screen.
+function clampToVisibleDisplay(state: WindowState): WindowState {
+  if (state.x === undefined || state.y === undefined) return state
+  const onScreen = screen.getAllDisplays().some(d => {
+    const { x, y, width, height } = d.workArea
+    return state.x! >= x && state.y! >= y && state.x! < x + width && state.y! < y + height
+  })
+  return onScreen ? state : { width: state.width, height: state.height }
+}
+
+let saveWindowStateTimer: NodeJS.Timeout | null = null
+function scheduleSaveWindowState(win: BrowserWindow): void {
+  if (saveWindowStateTimer) clearTimeout(saveWindowStateTimer)
+  saveWindowStateTimer = setTimeout(() => {
+    if (win.isDestroyed()) return
+    const bounds = win.getBounds()
+    writeFile(windowStatePath(), JSON.stringify(bounds)).catch(() => { /* non-fatal */ })
+  }, 500)
+}
+
+async function createWindow(): Promise<void> {
+  const savedState = clampToVisibleDisplay(await loadWindowState())
   const win = new BrowserWindow({
-    width: 1400,
-    height: 900,
+    width: savedState.width,
+    height: savedState.height,
+    x: savedState.x,
+    y: savedState.y,
     minWidth: 900,
     minHeight: 600,
     icon: resolveIcon(),
@@ -103,6 +153,9 @@ function createWindow(): void {
   })
 
   win.once('ready-to-show', () => win.show())
+
+  win.on('resize', () => scheduleSaveWindowState(win))
+  win.on('move', () => scheduleSaveWindowState(win))
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL'])
@@ -147,10 +200,11 @@ ipcMain.handle('save-file', async (_, content: string, filePath: string | null, 
     await writeFile(filePath, content, 'utf-8')
     return { path: filePath }
   }
+  const ext = defaultName.split('.').pop() || 'json'
   const result = await dialog.showSaveDialog({
     defaultPath: defaultName,
     filters: [
-      { name: 'JSON Files', extensions: ['json'] },
+      { name: `${ext.toUpperCase()} Files`, extensions: [ext] },
       { name: 'All Files', extensions: ['*'] }
     ]
   })

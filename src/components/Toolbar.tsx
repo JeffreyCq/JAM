@@ -22,6 +22,12 @@ interface ToolbarProps {
   hasApiKey: boolean
   onCompare: () => void
   canCompare: boolean
+  onSearchAll: () => void
+  onValidateSchema: () => void
+  onExportYaml: () => void
+  onExportCsv: () => void
+  autoSave: boolean
+  onToggleAutoSave: () => void
 }
 
 function Btn({
@@ -81,6 +87,12 @@ export function Toolbar({
   hasApiKey,
   onCompare,
   canCompare,
+  onSearchAll,
+  onValidateSchema,
+  onExportYaml,
+  onExportCsv,
+  autoSave,
+  onToggleAutoSave,
 }: ToolbarProps) {
   return (
     <div className="toolbar">
@@ -110,6 +122,24 @@ export function Toolbar({
           disabled={!canCompare}
         >
           🔀 Compare
+        </Btn>
+        <Btn onClick={onSearchAll} title="Search across all open files">
+          🔎 Search All
+        </Btn>
+        <Btn onClick={onValidateSchema} title="Validate the active file against a JSON Schema">
+          🧪 Schema
+        </Btn>
+      </div>
+
+      <Divider />
+
+      {/* Export group */}
+      <div className="tb-group">
+        <Btn onClick={onExportYaml} title="Export the active file as YAML">
+          📤 YAML
+        </Btn>
+        <Btn onClick={onExportCsv} title="Export the active file as CSV (needs an array of objects)">
+          📤 CSV
         </Btn>
       </div>
 
@@ -167,6 +197,13 @@ export function Toolbar({
       <div className="tb-group">
         <Btn onClick={onToggleJsonLines} title="Toggle JSON Lines / NDJSON mode" active={isJsonLines}>
           📋 JSON Lines
+        </Btn>
+        <Btn
+          onClick={onToggleAutoSave}
+          title={autoSave ? 'Auto-save is on — saved files write to disk as you type' : 'Auto-save files that already have a path on disk'}
+          active={autoSave}
+        >
+          💾⚡ Auto-save
         </Btn>
       </div>
 

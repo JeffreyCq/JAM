@@ -1,4 +1,6 @@
 import { jsonrepair } from 'jsonrepair'
+import { dump as yamlDump } from 'js-yaml'
+import Ajv from 'ajv'
 
 export function format(json: string, indent = 2): string {
   return JSON.stringify(JSON.parse(json), null, indent)
@@ -115,4 +117,59 @@ export function formatBytes(bytes: number): string {
 export function getJsonPath(path: string): string {
   if (!path) return '$'
   return '$.' + path
+}
+
+export function toYaml(json: string): string {
+  return yamlDump(JSON.parse(json))
+}
+
+// CSV only makes sense for tabular data — an array of objects (or a single
+// object, treated as one row). Anything else is rejected with a clear reason
+// rather than emitting a nonsensical single-cell CSV.
+export function toCsv(json: string): string {
+  const data = JSON.parse(json)
+  const rows: unknown[] = Array.isArray(data) ? data : [data]
+  if (rows.length === 0) return ''
+
+  const isRecord = (v: unknown): v is Record<string, unknown> =>
+    v !== null && typeof v === 'object' && !Array.isArray(v)
+  if (!rows.every(isRecord)) {
+    throw new Error('CSV export needs an array of objects (or a single object)')
+  }
+
+  const columns: string[] = []
+  for (const row of rows as Record<string, unknown>[]) {
+    for (const key of Object.keys(row)) {
+      if (!columns.includes(key)) columns.push(key)
+    }
+  }
+
+  const escape = (v: unknown): string => {
+    if (v === undefined || v === null) return ''
+    const s = typeof v === 'object' ? JSON.stringify(v) : String(v)
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+
+  const lines = [columns.join(',')]
+  for (const row of rows as Record<string, unknown>[]) {
+    lines.push(columns.map(c => escape(row[c])).join(','))
+  }
+  return lines.join('\n')
+}
+
+export interface SchemaError {
+  path: string
+  message: string
+}
+
+export function validateWithSchema(data: unknown, schemaText: string): { valid: boolean; errors: SchemaError[] } {
+  const schema = JSON.parse(schemaText)
+  const ajv = new Ajv({ allErrors: true })
+  const validateFn = ajv.compile(schema)
+  const valid = validateFn(data) as boolean
+  const errors: SchemaError[] = (validateFn.errors ?? []).map(e => ({
+    path: e.dataPath || '/',
+    message: e.message ?? 'Invalid'
+  }))
+  return { valid, errors }
 }

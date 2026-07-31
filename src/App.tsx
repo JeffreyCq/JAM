@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Anthropic from '@anthropic-ai/sdk'
 import Editor, { DiffEditor } from '@monaco-editor/react'
 import loader from '@monaco-editor/loader'
@@ -17,7 +17,11 @@ import {
   escapeJson,
   unescapeJson,
   parseLines,
-  type LinesResult
+  toYaml,
+  toCsv,
+  validateWithSchema,
+  type LinesResult,
+  type SchemaError
 } from './utils/jsonUtils'
 
 // Use bundled Monaco (no CDN)
@@ -166,6 +170,12 @@ export default function App() {
   const [showCompare, setShowCompare] = useState(false)
   const [compareLeftId, setCompareLeftId] = useState<string>('')
   const [compareRightId, setCompareRightId] = useState<string>('')
+  const [showSearchAll, setShowSearchAll] = useState(false)
+  const [globalSearch, setGlobalSearch] = useState('')
+  const [showSchema, setShowSchema] = useState(false)
+  const [schemaText, setSchemaText] = useState(() => localStorage.getItem('json_schema_draft') ?? '')
+  const [schemaResult, setSchemaResult] = useState<{ valid: boolean; errors: SchemaError[] } | null>(null)
+  const [autoSave, setAutoSave] = useState(() => localStorage.getItem('auto_save') === 'true')
   const [parsedData, setParsedData] = useState<unknown>(null)
   const [error, setError] = useState<string | null>(null)
   const [treeKey, setTreeKey] = useState(0)
@@ -260,6 +270,14 @@ export default function App() {
     localStorage.setItem('app_theme', theme)
   }, [theme])
 
+  useEffect(() => {
+    localStorage.setItem('json_schema_draft', schemaText)
+  }, [schemaText])
+
+  useEffect(() => {
+    localStorage.setItem('auto_save', String(autoSave))
+  }, [autoSave])
+
   // Parse the active tab's JSON. Switching tabs re-parses immediately (it's a
   // discrete click, not a keystroke); typing still debounces at 300ms. Only the
   // active tab is ever parsed — background tabs stay as plain strings, so having
@@ -314,6 +332,24 @@ export default function App() {
     []
   )
 
+  // Auto-save: only for tabs already linked to a file on disk — untitled tabs
+  // still require an explicit Save so the user picks a location once.
+  useEffect(() => {
+    if (!autoSave || !activeFile?.filePath) return
+    if (activeFile.content === activeFile.savedContent) return
+    const api = window.electronAPI
+    if (!api) return
+    const fileId = activeFile.id
+    const filePath = activeFile.filePath
+    const content = activeFile.content
+    const t = setTimeout(() => {
+      api.saveFile(content, filePath).then(result => {
+        if (result) updateFile(fileId, { savedContent: content })
+      })
+    }, 800)
+    return () => clearTimeout(t)
+  }, [autoSave, activeFile?.id, activeFile?.content, activeFile?.savedContent, activeFile?.filePath, updateFile])
+
   const addOrFocusFiles = useCallback((incoming: IncomingFile[]) => {
     setFiles(prev => {
       const { files: next, focusId } = computeNextFiles(prev, incoming)
@@ -343,6 +379,68 @@ export default function App() {
     setCompareRightId(right)
     setShowCompare(true)
   }, [files, activeId, notify])
+
+  // Search across every open tab's raw content — deliberately text-based
+  // rather than reusing the tree's key/value matcher, since background tabs
+  // are never parsed (that's what keeps having many files open cheap).
+  const searchResults = useMemo(() => {
+    const term = globalSearch.trim().toLowerCase()
+    if (!term) return []
+    return files
+      .map(f => {
+        const matches = f.content
+          .split('\n')
+          .map((text, i) => ({ line: i + 1, text: text.trim() }))
+          .filter(m => m.text.toLowerCase().includes(term))
+          .slice(0, 30)
+        return { file: f, matches }
+      })
+      .filter(r => r.matches.length > 0)
+  }, [files, globalSearch])
+
+  const handleJumpToMatch = useCallback((fileId: string) => {
+    setActiveId(fileId)
+    setSearch(globalSearch)
+    setShowSearchAll(false)
+  }, [globalSearch])
+
+  const handleValidateSchema = useCallback(() => {
+    if (!activeFile) return
+    try {
+      const data = JSON.parse(activeFile.content)
+      setSchemaResult(validateWithSchema(data, schemaText))
+    } catch (e) {
+      setSchemaResult({ valid: false, errors: [{ path: '/', message: (e as Error).message }] })
+    }
+  }, [activeFile, schemaText])
+
+  const handleExportYaml = async () => {
+    if (!activeFile) return
+    const api = window.electronAPI
+    if (!api) { notify('File API not available'); return }
+    try {
+      const yamlText = toYaml(activeFile.content)
+      const defaultName = activeFile.name.replace(/\.[^./\\]+$/, '') + '.yaml'
+      const result = await api.saveFile(yamlText, null, defaultName)
+      if (result) notify(`📤 Exported ${result.path.split(/[/\\]/).pop()}`)
+    } catch (e) {
+      notify(`Export error: ${(e as Error).message}`)
+    }
+  }
+
+  const handleExportCsv = async () => {
+    if (!activeFile) return
+    const api = window.electronAPI
+    if (!api) { notify('File API not available'); return }
+    try {
+      const csvText = toCsv(activeFile.content)
+      const defaultName = activeFile.name.replace(/\.[^./\\]+$/, '') + '.csv'
+      const result = await api.saveFile(csvText, null, defaultName)
+      if (result) notify(`📤 Exported ${result.path.split(/[/\\]/).pop()}`)
+    } catch (e) {
+      notify(`Export error: ${(e as Error).message}`)
+    }
+  }
 
   const apply = useCallback(
     (fn: (current: string) => string, msg: string) => {
@@ -715,6 +813,12 @@ export default function App() {
             hasApiKey={!!apiKey.trim()}
             onCompare={handleOpenCompare}
             canCompare={files.length >= 2}
+            onSearchAll={() => setShowSearchAll(true)}
+            onValidateSchema={() => { setSchemaResult(null); setShowSchema(true) }}
+            onExportYaml={handleExportYaml}
+            onExportCsv={handleExportCsv}
+            autoSave={autoSave}
+            onToggleAutoSave={() => setAutoSave(v => !v)}
           />
 
           <div className="main" ref={containerRef}>
@@ -904,6 +1008,87 @@ export default function App() {
           </div>
         )
       })()}
+
+      {/* ── Search all files modal ── */}
+      {showSearchAll && (
+        <div className="search-all-overlay" onClick={() => setShowSearchAll(false)}>
+          <div className="search-all-modal" onClick={e => e.stopPropagation()}>
+            <div className="search-all__header">
+              <input
+                className="search-all__input"
+                type="search"
+                autoFocus
+                placeholder="🔎 Search across all open files…"
+                value={globalSearch}
+                onChange={e => setGlobalSearch(e.target.value)}
+              />
+              <button className="compare-modal__close" onClick={() => setShowSearchAll(false)}>×</button>
+            </div>
+            <div className="search-all__results">
+              {globalSearch.trim() === '' ? (
+                <p className="search-all__hint">Type to search every open tab</p>
+              ) : searchResults.length === 0 ? (
+                <p className="search-all__hint">No matches in any open file</p>
+              ) : (
+                searchResults.map(({ file, matches }) => (
+                  <div key={file.id} className="search-all__group">
+                    <button className="search-all__file" onClick={() => handleJumpToMatch(file.id)}>
+                      🗎 {file.name} <span className="search-all__count">{matches.length}</span>
+                    </button>
+                    {matches.slice(0, 5).map(m => (
+                      <div key={m.line} className="search-all__line" onClick={() => handleJumpToMatch(file.id)}>
+                        <span className="search-all__line-no">{m.line}</span>
+                        <span className="search-all__line-text">{m.text.slice(0, 160)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── JSON Schema validation modal ── */}
+      {showSchema && (
+        <div className="schema-modal-overlay" onClick={() => setShowSchema(false)}>
+          <div className="schema-modal" onClick={e => e.stopPropagation()}>
+            <div className="compare-modal__header">
+              <h3>🧪 Validate against JSON Schema</h3>
+              <button className="compare-modal__close" onClick={() => setShowSchema(false)}>×</button>
+            </div>
+            <div className="schema-modal__body">
+              <textarea
+                className="schema-modal__textarea"
+                placeholder="Paste a JSON Schema here…"
+                value={schemaText}
+                onChange={e => setSchemaText(e.target.value)}
+                spellCheck={false}
+              />
+              <div className="schema-modal__actions">
+                <button className="cb-action-btn cb-action-btn--primary" onClick={handleValidateSchema}>
+                  Validate active file
+                </button>
+              </div>
+              {schemaResult && (
+                <div className={`schema-result${schemaResult.valid ? ' schema-result--ok' : ' schema-result--error'}`}>
+                  {schemaResult.valid ? (
+                    <p>✓ Valid — matches the schema</p>
+                  ) : (
+                    <ul className="schema-result__list">
+                      {schemaResult.errors.map((e, i) => (
+                        <li key={i}>
+                          <code>{e.path}</code> {e.message}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Drag & drop overlay ── */}
       {isDraggingOver && (
