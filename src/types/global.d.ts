@@ -12,6 +12,7 @@ declare global {
       platform: string
       openFile: () => Promise<OpenedFile[] | null>
       readFile: (filePath: string) => Promise<OpenedFile | null>
+      getPathForFile: (file: File) => string
       saveFile: (content: string, filePath?: string | null, name?: string) => Promise<{ path: string } | null>
       onFileOpen: (cb: (content: string, filePath: string) => void) => () => void
     }

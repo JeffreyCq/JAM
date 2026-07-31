@@ -39,6 +39,39 @@ function saveRecents(list: RecentFile[]): void {
   localStorage.setItem(RECENTS_KEY, JSON.stringify(list))
 }
 
+const SESSION_KEY = 'session_v1'
+const DROPPABLE_EXTS = /\.(json|jsonl|ndjson|log|txt)$/i
+
+interface SessionEntry {
+  name: string
+  filePath: string | null
+  content: string
+  savedContent: string
+  isJsonLines: boolean
+}
+
+interface SessionData {
+  entries: SessionEntry[]
+  activeIndex: number
+}
+
+function loadSession(): SessionData {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY)
+    return raw ? JSON.parse(raw) : { entries: [], activeIndex: 0 }
+  } catch {
+    return { entries: [], activeIndex: 0 }
+  }
+}
+
+function saveSession(data: SessionData): void {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(data))
+  } catch {
+    // Quota exceeded or unavailable — losing session restore is non-fatal.
+  }
+}
+
 interface FileTab {
   id: string
   name: string
@@ -105,11 +138,29 @@ function computeNextFiles(
   return { files: next, focusId }
 }
 
+function getInitialSession(): { files: FileTab[]; activeId: string } {
+  const session = loadSession()
+  if (session.entries.length === 0) return { files: [], activeId: '' }
+  const restored: FileTab[] = session.entries.map(e => ({
+    id: nextTabId(),
+    name: e.name,
+    filePath: e.filePath,
+    content: e.content,
+    savedContent: e.savedContent,
+    isJsonLines: e.isJsonLines,
+    selectedLine: 0
+  }))
+  const activeIdx = Math.min(Math.max(session.activeIndex, 0), restored.length - 1)
+  return { files: restored, activeId: restored[activeIdx].id }
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'editor' | 'builder'>('editor')
-  const [files, setFiles] = useState<FileTab[]>([])
-  const [activeId, setActiveId] = useState<string>('')
+  const [initialSession] = useState(getInitialSession)
+  const [files, setFiles] = useState<FileTab[]>(() => initialSession.files)
+  const [activeId, setActiveId] = useState<string>(() => initialSession.activeId)
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>(() => loadRecents())
+  const [isDraggingOver, setIsDraggingOver] = useState(false)
   const [parsedData, setParsedData] = useState<unknown>(null)
   const [error, setError] = useState<string | null>(null)
   const [treeKey, setTreeKey] = useState(0)
@@ -145,6 +196,42 @@ export default function App() {
       return next
     })
   }, [])
+
+  // One-time, on mount: restored tabs that are disk-backed and clean carry
+  // whatever content they had at last save — quietly refresh them from disk in
+  // case the file changed elsewhere between sessions. Dirty/untitled tabs are
+  // left untouched since their persisted content IS the source of truth.
+  useEffect(() => {
+    const api = window.electronAPI
+    if (!api) return
+    initialSession.files.forEach(f => {
+      if (!f.filePath || f.content !== f.savedContent) return
+      api.readFile(f.filePath).then(result => {
+        if (result && result.content !== f.content) {
+          updateFile(f.id, { content: result.content, savedContent: result.content })
+        }
+      })
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Persist the open tabs (including unsaved edits) so relaunching restores
+  // the session instead of always starting from the welcome screen.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      saveSession({
+        entries: files.map(f => ({
+          name: f.name,
+          filePath: f.filePath,
+          content: f.content,
+          savedContent: f.savedContent,
+          isJsonLines: f.isJsonLines
+        })),
+        activeIndex: Math.max(0, files.findIndex(f => f.id === activeId))
+      })
+    }, 500)
+    return () => clearTimeout(t)
+  }, [files, activeId])
 
   // Lets async/event-driven handlers (IPC file-open events, tab close) update
   // `files` via the functional setState form and still know which tab to focus
@@ -255,6 +342,62 @@ export default function App() {
       pushRecent(filePath, name)
       notify(`📂 ${name}`)
     })
+  }, [addOrFocusFiles, pushRecent, notify])
+
+  // Drag & drop files from Finder anywhere onto the window
+  useEffect(() => {
+    const api = window.electronAPI
+    if (!api?.getPathForFile) return
+    let dragDepth = 0
+
+    const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes('Files')
+
+    const onDragEnter = (e: DragEvent) => {
+      if (!hasFiles(e)) return
+      e.preventDefault()
+      dragDepth += 1
+      setIsDraggingOver(true)
+    }
+    const onDragOver = (e: DragEvent) => {
+      if (!hasFiles(e)) return
+      e.preventDefault()
+    }
+    const onDragLeave = (e: DragEvent) => {
+      if (!hasFiles(e)) return
+      dragDepth = Math.max(0, dragDepth - 1)
+      if (dragDepth === 0) setIsDraggingOver(false)
+    }
+    const onDrop = async (e: DragEvent) => {
+      if (!hasFiles(e)) return
+      e.preventDefault()
+      dragDepth = 0
+      setIsDraggingOver(false)
+      const droppedFiles = Array.from(e.dataTransfer?.files ?? [])
+      const paths = droppedFiles
+        .map(f => api.getPathForFile(f))
+        .filter(p => DROPPABLE_EXTS.test(p))
+      if (paths.length === 0) {
+        if (droppedFiles.length > 0) notify('⚠ Only .json, .jsonl, .ndjson, .log, .txt files are supported')
+        return
+      }
+      const results = await Promise.all(paths.map(p => api.readFile(p)))
+      const opened = results.filter((r): r is NonNullable<typeof r> => r !== null)
+      if (opened.length === 0) return
+      addOrFocusFiles(opened.map(f => ({ path: f.path, name: f.name, content: f.content })))
+      opened.forEach(f => pushRecent(f.path, f.name))
+      notify(opened.length === 1 ? `📂 ${opened[0].name}` : `📂 Opened ${opened.length} files`)
+    }
+
+    window.addEventListener('dragenter', onDragEnter)
+    window.addEventListener('dragover', onDragOver)
+    window.addEventListener('dragleave', onDragLeave)
+    window.addEventListener('drop', onDrop)
+    return () => {
+      window.removeEventListener('dragenter', onDragEnter)
+      window.removeEventListener('dragover', onDragOver)
+      window.removeEventListener('dragleave', onDragLeave)
+      window.removeEventListener('drop', onDrop)
+    }
   }, [addOrFocusFiles, pushRecent, notify])
 
   const handleFormat = () => apply(c => format(c, indentSize), '✨ Formatted!')
@@ -661,6 +804,13 @@ export default function App() {
               }}>Save</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Drag & drop overlay ── */}
+      {isDraggingOver && (
+        <div className="drop-overlay">
+          <div className="drop-overlay__card">📂 Drop to open</div>
         </div>
       )}
     </div>
