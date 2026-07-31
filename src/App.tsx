@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Anthropic from '@anthropic-ai/sdk'
-import Editor from '@monaco-editor/react'
+import Editor, { DiffEditor } from '@monaco-editor/react'
 import loader from '@monaco-editor/loader'
 import * as monaco from 'monaco-editor'
 import { Toolbar } from './components/Toolbar'
@@ -161,6 +161,11 @@ export default function App() {
   const [activeId, setActiveId] = useState<string>(() => initialSession.activeId)
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>(() => loadRecents())
   const [isDraggingOver, setIsDraggingOver] = useState(false)
+  const [draggedTabId, setDraggedTabId] = useState<string | null>(null)
+  const [dragOverTabId, setDragOverTabId] = useState<string | null>(null)
+  const [showCompare, setShowCompare] = useState(false)
+  const [compareLeftId, setCompareLeftId] = useState<string>('')
+  const [compareRightId, setCompareRightId] = useState<string>('')
   const [parsedData, setParsedData] = useState<unknown>(null)
   const [error, setError] = useState<string | null>(null)
   const [treeKey, setTreeKey] = useState(0)
@@ -316,6 +321,28 @@ export default function App() {
       return next
     })
   }, [])
+
+  const reorderTabs = useCallback((draggedId: string, targetId: string) => {
+    if (draggedId === targetId) return
+    setFiles(prev => {
+      const fromIdx = prev.findIndex(f => f.id === draggedId)
+      const toIdx = prev.findIndex(f => f.id === targetId)
+      if (fromIdx === -1 || toIdx === -1) return prev
+      const next = [...prev]
+      const [moved] = next.splice(fromIdx, 1)
+      next.splice(toIdx, 0, moved)
+      return next
+    })
+  }, [])
+
+  const handleOpenCompare = useCallback(() => {
+    if (files.length < 2) { notify('Open at least 2 files to compare'); return }
+    const left = activeId || files[0].id
+    const right = files.find(f => f.id !== left)?.id ?? files[0].id
+    setCompareLeftId(left)
+    setCompareRightId(right)
+    setShowCompare(true)
+  }, [files, activeId, notify])
 
   const apply = useCallback(
     (fn: (current: string) => string, msg: string) => {
@@ -619,9 +646,29 @@ export default function App() {
                 return (
                   <div
                     key={f.id}
-                    className={`file-tab${f.id === activeFile.id ? ' file-tab--active' : ''}`}
+                    className={`file-tab${f.id === activeFile.id ? ' file-tab--active' : ''}${f.id === draggedTabId ? ' file-tab--dragging' : ''}${f.id === dragOverTabId && f.id !== draggedTabId ? ' file-tab--drag-over' : ''}`}
                     onClick={() => setActiveId(f.id)}
                     title={f.filePath ?? f.name}
+                    draggable
+                    onDragStart={e => {
+                      setDraggedTabId(f.id)
+                      e.dataTransfer.effectAllowed = 'move'
+                      e.dataTransfer.setData('application/x-jtools-tab', f.id)
+                    }}
+                    onDragOver={e => {
+                      e.preventDefault()
+                      e.dataTransfer.dropEffect = 'move'
+                      if (draggedTabId && draggedTabId !== f.id) setDragOverTabId(f.id)
+                    }}
+                    onDragLeave={() => setDragOverTabId(prev => (prev === f.id ? null : prev))}
+                    onDrop={e => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      if (draggedTabId) reorderTabs(draggedTabId, f.id)
+                      setDraggedTabId(null)
+                      setDragOverTabId(null)
+                    }}
+                    onDragEnd={() => { setDraggedTabId(null); setDragOverTabId(null) }}
                   >
                     <span className="file-tab__icon">🗎</span>
                     <span className="file-tab__name">{f.name}</span>
@@ -666,6 +713,8 @@ export default function App() {
             onOpenApiSettings={() => { setApiKeyDraft(apiKey); setShowApiSettings(true) }}
             aiLoading={aiLoading}
             hasApiKey={!!apiKey.trim()}
+            onCompare={handleOpenCompare}
+            canCompare={files.length >= 2}
           />
 
           <div className="main" ref={containerRef}>
@@ -806,6 +855,55 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* ── Compare files modal ── */}
+      {showCompare && (() => {
+        const leftFile = files.find(f => f.id === compareLeftId)
+        const rightFile = files.find(f => f.id === compareRightId)
+        return (
+          <div className="compare-modal-overlay" onClick={() => setShowCompare(false)}>
+            <div className="compare-modal" onClick={e => e.stopPropagation()}>
+              <div className="compare-modal__header">
+                <h3>🔀 Compare Files</h3>
+                <button className="compare-modal__close" onClick={() => setShowCompare(false)}>×</button>
+              </div>
+              <div className="compare-modal__pickers">
+                <select
+                  className="compare-modal__select"
+                  value={compareLeftId}
+                  onChange={e => setCompareLeftId(e.target.value)}
+                >
+                  {files.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+                <span className="compare-modal__vs">vs</span>
+                <select
+                  className="compare-modal__select"
+                  value={compareRightId}
+                  onChange={e => setCompareRightId(e.target.value)}
+                >
+                  {files.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+              </div>
+              <div className="compare-modal__diff">
+                <DiffEditor
+                  original={leftFile?.content ?? ''}
+                  modified={rightFile?.content ?? ''}
+                  language="json"
+                  theme={theme === 'dark' ? 'vs-dark' : 'vs-light'}
+                  options={{
+                    readOnly: true,
+                    renderSideBySide: true,
+                    minimap: { enabled: false },
+                    fontSize: 12.5,
+                    wordWrap: 'on',
+                    scrollBeyondLastLine: false
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── Drag & drop overlay ── */}
       {isDraggingOver && (

@@ -20,6 +20,8 @@ interface ToolbarProps {
   onOpenApiSettings: () => void
   aiLoading: boolean
   hasApiKey: boolean
+  onCompare: () => void
+  canCompare: boolean
 }
 
 function Btn({
@@ -77,6 +79,8 @@ export function Toolbar({
   onOpenApiSettings,
   aiLoading,
   hasApiKey,
+  onCompare,
+  canCompare,
 }: ToolbarProps) {
   return (
     <div className="toolbar">
@@ -93,6 +97,19 @@ export function Toolbar({
         </Btn>
         <Btn onClick={onClear} title="Clear editor" danger>
           🗑 Clear
+        </Btn>
+      </div>
+
+      <Divider />
+
+      {/* Compare group */}
+      <div className="tb-group">
+        <Btn
+          onClick={onCompare}
+          title={canCompare ? 'Compare two open files' : 'Open at least 2 files to compare'}
+          disabled={!canCompare}
+        >
+          🔀 Compare
         </Btn>
       </div>
 
