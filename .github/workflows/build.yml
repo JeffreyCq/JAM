@@ -7,37 +7,15 @@ on:
     tags:
       - 'v*'
 
+# macOS builds are NOT produced here on purpose: they're signed locally with a
+# self-signed "Jtools Internal Code Signing" certificate that only lives in one
+# machine's keychain (see build.mac.identity in package.json and
+# scripts/after-pack.js). A CI runner has no access to that certificate, so a
+# CI-built .dmg would only ever be ad-hoc-signed — worse than, and liable to
+# silently overwrite via `gh release upload`, the properly signed one. Build
+# and upload macOS artifacts locally (`npm run dist:mac`, then
+# `gh release upload <tag> release/*.dmg release/*.zip --clobber`).
 jobs:
-  # ── macOS ────────────────────────────────────────────────────────────────────
-  build-mac:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build (mac)
-        run: npm run dist:mac
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false   # skip code signing (no Apple cert)
-
-      - name: Upload .dmg artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: mac-installers
-          path: |
-            release/*.dmg
-            release/*.zip
-          retention-days: 30
-
   # ── Windows ──────────────────────────────────────────────────────────────────
   build-win:
     runs-on: windows-latest
@@ -68,8 +46,9 @@ jobs:
           retention-days: 30
 
   # ── Create GitHub Release (only on version tags) ──────────────────────────────
+  # Windows-only for now — see the note above about macOS artifacts.
   release:
-    needs: [build-mac, build-win]
+    needs: [build-win]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
