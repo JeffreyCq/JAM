@@ -1,5 +1,6 @@
-import React from 'react'
-import { Tip, splitHint } from './Tip'
+import React, { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { Tip } from './Tip'
 
 interface ToolbarProps {
   onFormat: () => void
@@ -30,33 +31,128 @@ interface ToolbarProps {
   onToggleAutoSave: () => void
 }
 
-function Btn({
+interface MenuItemDef {
+  icon: string
+  label: string
+  shortcut?: string
+  onClick: () => void
+  disabled?: boolean
+  variant?: 'danger' | 'ai'
+}
+
+// Dropdown menu button — the list is rendered through a portal into <body>,
+// positioned from the trigger's real screen coordinates. The toolbar scrolls
+// horizontally (overflow-x: auto), which forces overflow-y to auto too (a CSS
+// quirk: one axis can't stay visible once the other isn't) — anything
+// absolutely positioned inside it would get silently clipped instead of
+// floating above the bar.
+function Menu({
+  id,
+  label,
+  icon,
+  items,
+  openMenu,
+  setOpenMenu
+}: {
+  id: string
+  label: string
+  icon: string
+  items: MenuItemDef[]
+  openMenu: string | null
+  setOpenMenu: (id: string | null) => void
+}) {
+  const open = openMenu === id
+  const [pos, setPos] = useState({ x: 0, y: 0 })
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+
+  const toggle = () => {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      setPos({ x: rect.left, y: rect.bottom + 6 })
+    }
+    setOpenMenu(open ? null : id)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (btnRef.current?.contains(target) || listRef.current?.contains(target)) return
+      setOpenMenu(null)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpenMenu(null) }
+    window.addEventListener('mousedown', onDown)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('mousedown', onDown)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [open, setOpenMenu])
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        className={`tb-menu__trigger${open ? ' tb-menu__trigger--open' : ''}`}
+        onClick={toggle}
+      >
+        <span>{icon}</span> {label} <span className="tb-menu__caret">▾</span>
+      </button>
+      {open && createPortal(
+        <div className="tb-menu__list" ref={listRef} style={{ left: pos.x, top: pos.y }}>
+          {items.map((item, i) => (
+            <button
+              key={i}
+              className={`tb-menu__item${item.variant ? ` tb-menu__item--${item.variant}` : ''}`}
+              disabled={item.disabled}
+              onClick={() => { setOpenMenu(null); item.onClick() }}
+            >
+              <span className="tb-menu__item-icon">{item.icon}</span>
+              <span className="tb-menu__item-label">{item.label}</span>
+              {item.shortcut && <span className="tb-menu__item-shortcut">{item.shortcut}</span>}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+    </>
+  )
+}
+
+function IconBarButton({ item }: { item: MenuItemDef }) {
+  return (
+    <Tip label={item.label} shortcut={item.shortcut}>
+      <button
+        className={`tb-icon-btn${item.variant ? ` tb-icon-btn--${item.variant}` : ''}`}
+        onClick={item.onClick}
+        disabled={item.disabled}
+        aria-label={item.label}
+      >
+        {item.icon}
+      </button>
+    </Tip>
+  )
+}
+
+function ToggleChip({
   onClick,
-  title,
-  children,
-  active,
-  danger,
-  ai,
-  disabled
+  label,
+  hint,
+  active
 }: {
   onClick: () => void
-  title: string
-  children: React.ReactNode
+  label: string
+  hint: string
   active?: boolean
-  danger?: boolean
-  ai?: boolean
-  disabled?: boolean
 }) {
-  const { label, shortcut } = splitHint(title)
   return (
-    <Tip label={label} shortcut={shortcut}>
+    <Tip label={hint}>
       <button
-        className={`tb-btn${active ? ' tb-btn--active' : ''}${danger ? ' tb-btn--danger' : ''}${ai ? ' tb-btn--ai' : ''}`}
+        className={`tb-btn${active ? ' tb-btn--active' : ''}`}
         onClick={onClick}
-        aria-label={title}
-        disabled={disabled}
       >
-        {children}
+        {label}
       </button>
     </Tip>
   )
@@ -94,145 +190,119 @@ export function Toolbar({
   autoSave,
   onToggleAutoSave,
 }: ToolbarProps) {
+  const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [showIconBar, setShowIconBar] = useState(() => localStorage.getItem('show_icon_bar') === 'true')
+
+  useEffect(() => {
+    localStorage.setItem('show_icon_bar', String(showIconBar))
+  }, [showIconBar])
+
+  const fileItems: MenuItemDef[] = [
+    { icon: '📂', label: 'Open File…', shortcut: 'Ctrl+O', onClick: onOpenFile },
+    { icon: '💾', label: 'Save', shortcut: 'Ctrl+S', onClick: onSaveFile },
+    { icon: '📋', label: 'Copy to Clipboard', onClick: onCopyAll },
+    { icon: '🗑', label: 'Clear Editor', onClick: onClear, variant: 'danger' },
+  ]
+
+  const transformItems: MenuItemDef[] = [
+    { icon: '✨', label: 'Format', shortcut: 'Ctrl+⇧+F', onClick: onFormat },
+    { icon: '⬛', label: 'Minify to one line', onClick: onMinify },
+    { icon: '🔧', label: 'Repair (offline, rule-based)', onClick: onRepair },
+    {
+      icon: aiLoading ? '⏳' : '🤖',
+      label: aiLoading ? 'AI Repair — running…' : hasApiKey ? 'AI Repair (Claude)' : 'AI Repair — set API key first',
+      onClick: onAiRepair,
+      disabled: aiLoading,
+      variant: 'ai'
+    },
+    { icon: '🔤', label: 'Sort Keys Alphabetically', onClick: onSortKeys },
+    { icon: '🔒', label: 'Escape to Embeddable String', onClick: onEscape },
+    { icon: '🔓', label: 'Unescape Embedded String', onClick: onUnescape },
+    { icon: '⚙', label: 'Configure AI API Key…', onClick: onOpenApiSettings },
+  ]
+
+  const toolsItems: MenuItemDef[] = [
+    { icon: '🔀', label: 'Compare Two Files', onClick: onCompare, disabled: !canCompare },
+    { icon: '🔎', label: 'Search All Open Files', onClick: onSearchAll },
+    { icon: '🧪', label: 'Validate JSON Schema', onClick: onValidateSchema },
+    { icon: '📤', label: 'Export as YAML', onClick: onExportYaml },
+    { icon: '📤', label: 'Export as CSV', onClick: onExportCsv },
+  ]
+
   return (
-    <div className="toolbar">
-      {/* File group */}
-      <div className="tb-group">
-        <Btn onClick={onOpenFile} title="Open file (Ctrl+O)">
-          📂 Open
-        </Btn>
-        <Btn onClick={onSaveFile} title="Save file (Ctrl+S)">
-          💾 Save
-        </Btn>
-        <Btn onClick={onCopyAll} title="Copy all to clipboard">
-          📋 Copy
-        </Btn>
-        <Btn onClick={onClear} title="Clear editor" danger>
-          🗑 Clear
-        </Btn>
-      </div>
+    <>
+      <div className="toolbar">
+        <div className="tb-group">
+          <Menu id="file" label="File" icon="📁" items={fileItems} openMenu={openMenu} setOpenMenu={setOpenMenu} />
+          <Menu id="transform" label="Transform" icon="🪄" items={transformItems} openMenu={openMenu} setOpenMenu={setOpenMenu} />
+          <Menu id="tools" label="Tools" icon="🧰" items={toolsItems} openMenu={openMenu} setOpenMenu={setOpenMenu} />
+        </div>
 
-      <Divider />
+        <Divider />
 
-      {/* Compare group */}
-      <div className="tb-group">
-        <Btn
-          onClick={onCompare}
-          title={canCompare ? 'Compare two open files' : 'Open at least 2 files to compare'}
-          disabled={!canCompare}
-        >
-          🔀 Compare
-        </Btn>
-        <Btn onClick={onSearchAll} title="Search across all open files">
-          🔎 Search All
-        </Btn>
-        <Btn onClick={onValidateSchema} title="Validate the active file against a JSON Schema">
-          🧪 Schema
-        </Btn>
-      </div>
+        <div className="tb-group">
+          <ToggleChip
+            onClick={() => setShowIconBar(v => !v)}
+            active={showIconBar}
+            label="📌 Icon Bar"
+            hint={showIconBar ? 'Hide the quick-access icon toolbar' : 'Show every tool as icons in a bar below — no menus to open'}
+          />
+        </div>
 
-      <Divider />
+        <Divider />
 
-      {/* Export group */}
-      <div className="tb-group">
-        <Btn onClick={onExportYaml} title="Export the active file as YAML">
-          📤 YAML
-        </Btn>
-        <Btn onClick={onExportCsv} title="Export the active file as CSV (needs an array of objects)">
-          📤 CSV
-        </Btn>
-      </div>
+        <div className="tb-group">
+          <ToggleChip
+            onClick={onToggleJsonLines}
+            active={isJsonLines}
+            label="📋 JSON Lines"
+            hint="Toggle JSON Lines / NDJSON mode"
+          />
+          <ToggleChip
+            onClick={onToggleAutoSave}
+            active={autoSave}
+            label="💾⚡ Auto-save"
+            hint={autoSave ? 'Auto-save is on — saved files write to disk as you type' : 'Auto-save files that already have a path on disk'}
+          />
+        </div>
 
-      <Divider />
+        <Divider />
 
-      {/* Transform group */}
-      <div className="tb-group">
-        <Btn onClick={onFormat} title="Pretty print JSON (Ctrl+Shift+F)">
-          ✨ Format
-        </Btn>
-        <Btn onClick={onMinify} title="Minify to one line">
-          ⬛ Minify
-        </Btn>
-        <Btn onClick={onRepair} title="Auto-fix JSON errors (rule-based, offline)">
-          🔧 Repair
-        </Btn>
-        <Btn
-          onClick={onAiRepair}
-          title={hasApiKey ? 'Repair JSON using AI (Claude)' : 'Set Anthropic API key first (⚙)'}
-          ai
-          disabled={aiLoading}
-        >
-          {aiLoading ? '⏳ AI…' : '🤖 AI Repair'}
-        </Btn>
-        <Tip label="Configure Anthropic API key for AI repair">
-          <button
-            className="tb-btn"
-            onClick={onOpenApiSettings}
-            aria-label="Configure Anthropic API key for AI repair"
-            style={{ padding: '3px 7px' }}
-          >
-            ⚙
-          </button>
-        </Tip>
-        <Btn onClick={onSortKeys} title="Sort all object keys alphabetically">
-          🔤 Sort Keys
-        </Btn>
-      </div>
-
-      <Divider />
-
-      {/* Escape group */}
-      <div className="tb-group">
-        <Btn onClick={onEscape} title="Escape JSON to embeddable string">
-          🔒 Escape
-        </Btn>
-        <Btn onClick={onUnescape} title="Unescape embedded JSON string">
-          🔓 Unescape
-        </Btn>
-      </div>
-
-      <Divider />
-
-      {/* Mode group */}
-      <div className="tb-group">
-        <Btn onClick={onToggleJsonLines} title="Toggle JSON Lines / NDJSON mode" active={isJsonLines}>
-          📋 JSON Lines
-        </Btn>
-        <Btn
-          onClick={onToggleAutoSave}
-          title={autoSave ? 'Auto-save is on — saved files write to disk as you type' : 'Auto-save files that already have a path on disk'}
-          active={autoSave}
-        >
-          💾⚡ Auto-save
-        </Btn>
-      </div>
-
-      <Divider />
-
-      {/* Indent group */}
-      <div className="tb-group tb-group--indent">
-        <span className="tb-label">Indent:</span>
-        {[2, 4].map(n => (
-          <Tip key={n} label={`Indent with ${n} spaces`}>
+        {/* Indent group */}
+        <div className="tb-group tb-group--indent">
+          <span className="tb-label">Indent:</span>
+          {[2, 4].map(n => (
+            <Tip key={n} label={`Indent with ${n} spaces`}>
+              <button
+                className={`tb-indent-btn${indentSize === n ? ' tb-indent-btn--active' : ''}`}
+                onClick={() => onIndentSizeChange(n)}
+                aria-label={`${n} spaces`}
+              >
+                {n}
+              </button>
+            </Tip>
+          ))}
+          <Tip label="Indent with tabs">
             <button
-              className={`tb-indent-btn${indentSize === n ? ' tb-indent-btn--active' : ''}`}
-              onClick={() => onIndentSizeChange(n)}
-              aria-label={`${n} spaces`}
+              className={`tb-indent-btn${indentSize === 1 ? ' tb-indent-btn--active' : ''}`}
+              onClick={() => onIndentSizeChange(1)}
+              aria-label="Tabs"
             >
-              {n}
+              T
             </button>
           </Tip>
-        ))}
-        <Tip label="Indent with tabs">
-          <button
-            className={`tb-indent-btn${indentSize === 1 ? ' tb-indent-btn--active' : ''}`}
-            onClick={() => onIndentSizeChange(1)}
-            aria-label="Tabs"
-          >
-            T
-          </button>
-        </Tip>
+        </div>
       </div>
-    </div>
+
+      {showIconBar && (
+        <div className="toolbar-icons">
+          {fileItems.map((item, i) => <IconBarButton key={`file-${i}`} item={item} />)}
+          <Divider />
+          {transformItems.map((item, i) => <IconBarButton key={`transform-${i}`} item={item} />)}
+          <Divider />
+          {toolsItems.map((item, i) => <IconBarButton key={`tools-${i}`} item={item} />)}
+        </div>
+      )}
+    </>
   )
 }

@@ -888,7 +888,8 @@ export default function App() {
                 <JsonTree key={`${activeFile.id}-${treeKey}`} data={parsedData} search={search} onNotify={notify} />
               ) : (
                 <div className="tree-placeholder">
-                  {error ? 'Fix the JSON error to see the tree' : 'Start typing or open a file…'}
+                  <div className="tree-placeholder__icon">{error ? '⚠' : '🗂'}</div>
+                  <div>{error ? 'Fix the JSON error to see the tree' : 'Start typing or open a file…'}</div>
                 </div>
               )}
             </div>

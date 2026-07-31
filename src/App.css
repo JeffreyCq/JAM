@@ -145,6 +145,121 @@ body {
 .tb-btn--ai:hover { border-color: var(--mauve); color: var(--mauve) }
 .tb-btn--ai.tb-btn--loading { opacity: 0.6; cursor: not-allowed }
 
+/* ─── Toolbar dropdown menus (File / Transform / Tools) ──────────────────────── */
+.tb-menu__trigger {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.tb-menu__trigger:hover { background: var(--surface1); border-color: var(--border); transform: translateY(-1px) }
+.tb-menu__trigger--open {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface0));
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent);
+}
+.tb-menu__caret { font-size: 9px; opacity: 0.65 }
+
+/* Portaled into <body> and positioned via fixed coords from the trigger's
+   real screen position — see the comment on Menu() in Toolbar.tsx. */
+.tb-menu__list {
+  position: fixed;
+  min-width: 240px;
+  max-width: 320px;
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  z-index: 9000;
+  animation: menuFadeIn 0.12s ease;
+}
+@keyframes menuFadeIn {
+  from { opacity: 0; transform: translateY(-4px) }
+  to   { opacity: 1; transform: translateY(0) }
+}
+
+.tb-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12.5px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.tb-menu__item:hover:not(:disabled) { background: var(--surface2) }
+.tb-menu__item:disabled { opacity: 0.4; cursor: not-allowed }
+.tb-menu__item--danger:hover:not(:disabled) { background: color-mix(in srgb, var(--red) 16%, transparent); color: var(--red) }
+.tb-menu__item--ai:not(:disabled) { color: var(--mauve) }
+.tb-menu__item--ai:hover:not(:disabled) { background: color-mix(in srgb, var(--mauve) 14%, transparent) }
+
+.tb-menu__item-icon { flex-shrink: 0; width: 18px; text-align: center }
+.tb-menu__item-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.tb-menu__item-shortcut {
+  flex-shrink: 0;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+/* ─── Quick-access icon toolbar (flattened menu items, toggled on) ───────────── */
+.toolbar-icons {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 8px;
+  background: var(--surface0);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.toolbar-icons::-webkit-scrollbar { display: none }
+
+.tb-icon-btn {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.tb-icon-btn:hover:not(:disabled) { background: var(--surface1); border-color: var(--border); transform: translateY(-1px) }
+.tb-icon-btn:active:not(:disabled) { transform: translateY(0) }
+.tb-icon-btn:disabled { opacity: 0.35; cursor: not-allowed }
+.tb-icon-btn--danger:hover:not(:disabled) { border-color: var(--red); color: var(--red) }
+.tb-icon-btn--ai { color: var(--mauve) }
+.tb-icon-btn--ai:hover:not(:disabled) { border-color: var(--mauve) }
+
 /* API key modal */
 .api-modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.6);
@@ -196,11 +311,12 @@ body {
   display: inline-flex;
 }
 
+/* Rendered through a portal into <body> and positioned via fixed coords
+   (see Tip.tsx) — anything absolutely positioned inside the toolbar would
+   get clipped, since overflow-x: auto there forces overflow-y to auto too. */
 .tip-bubble {
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 9px);
-  transform: translateX(-50%) translateY(4px);
+  position: fixed;
+  transform: translate(-50%, calc(-100% - 9px));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -214,10 +330,9 @@ body {
   line-height: 1.4;
   white-space: nowrap;
   color: var(--text);
-  opacity: 0;
   pointer-events: none;
-  z-index: 4000;
-  transition: opacity 0.12s ease, transform 0.12s ease;
+  z-index: 9000;
+  animation: tipFadeIn 0.12s ease;
 }
 .tip-bubble::after {
   content: '';
@@ -228,11 +343,9 @@ body {
   border: 5px solid transparent;
   border-top-color: var(--surface2);
 }
-.tip-wrap:hover .tip-bubble,
-.tip-wrap:focus-within .tip-bubble {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-  transition-delay: 0.35s;
+@keyframes tipFadeIn {
+  from { opacity: 0; transform: translate(-50%, calc(-100% - 3px)) }
+  to   { opacity: 1; transform: translate(-50%, calc(-100% - 9px)) }
 }
 .tip-bubble__title { font-weight: 600; color: var(--text) }
 .tip-bubble__hint {
@@ -302,14 +415,17 @@ body {
 /* ─── Tree placeholder ───────────────────────────────────────────────────────── */
 .tree-placeholder, .tree-empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   flex: 1;
   color: var(--muted);
   font-size: 13px;
   text-align: center;
   padding: 20px;
 }
+.tree-placeholder__icon { font-size: 32px; opacity: 0.5 }
 
 /* ─── Tree ───────────────────────────────────────────────────────────────────── */
 .tree-wrap { display: flex; flex-direction: column; flex: 1; overflow: hidden }
